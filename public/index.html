@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x402 Raid Control</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>x402 Raid Control Panel</h1>
+      <p>
+        Monitor connected robots and trigger commands. Data refreshes automatically every 15 seconds.
+      </p>
+    </header>
+
+    <main>
+      <section class="top-layout">
+        <div class="panel commands-panel">
+          <h2>Demo Actions</h2>
+          <div class="commands">
+            <form id="dance-form">
+              <h3>Dance</h3>
+              <label>
+                Dancers
+                <select name="quantity">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="all">All</option>
+                </select>
+              </label>
+              <button type="submit">Send</button>
+              <div id="dance-message" class="message"></div>
+            </form>
+
+            <form id="cola-form">
+              <h3>Buy Cola</h3>
+              <label>
+                Latitude
+                <input name="lat" type="number" step="0.0001" required />
+              </label>
+              <label>
+                Longitude
+                <input name="lng" type="number" step="0.0001" required />
+              </label>
+              <label>
+                Quantity
+                <input name="quantity" type="number" min="1" value="1" required />
+              </label>
+              <button type="submit">Send</button>
+              <div id="cola-message" class="message"></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="panel map-panel">
+          <header class="panel-header">
+            <h2>Robots Overview</h2>
+            <button id="refresh-all" type="button">Refresh All</button>
+          </header>
+          <div id="robots-map" class="map"></div>
+          <div id="robots-list" class="robots-list"></div>
+        </div>
+      </section>
+
+      <section class="panel register-panel">
+        <h2>Register Robot</h2>
+        <form id="robot-form">
+          <label>
+            Name
+            <input name="name" placeholder="Robo-1" />
+          </label>
+          <label>
+            Host
+            <input name="host" placeholder="192.168.1.10" required />
+          </label>
+          <label>
+            Port
+            <input name="port" placeholder="8080" type="number" required />
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="requiresX402" />
+            Requires x402
+          </label>
+          <button type="submit">Add Robot</button>
+        </form>
+        <div id="robot-form-message" class="message"></div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/ui/app.js"></script>
+  </body>
+</html>
+
