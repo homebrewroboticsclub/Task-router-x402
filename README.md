@@ -1,4 +1,4 @@
-# x402 Raid Control Service
+# x402 Task Router Service
 
 Node.js service orchestrating x402-enabled payments and robot control flows. It exposes REST endpoints to register and monitor robots, trigger collaborative commands (for example, `dance` and `buy-cola`), and serves a lightweight web console for day-to-day operations.
 
@@ -52,6 +52,10 @@ Environment variables can be provided via a `.env` file (copy `config/env.exampl
 | `ROBOT_COMMAND_TIMEOUT_MS` | `--robot-command-timeout` | Command dispatch timeout (ms) | `8000` |
 | `ROBOT_HEALTH_ENDPOINT` | `--robot-health-endpoint` | Public health endpoint path | `/health` |
 | `ROBOT_SECURE_HEALTH_ENDPOINT` | `--robot-secure-health-endpoint` | Secured health endpoint path (x402) | `/helth` |
+| `ADMIN_USERNAME` | — | Admin panel HTTP Basic auth username | `admin` |
+| `ADMIN_PASSWORD` | — | Admin panel HTTP Basic auth password | _required for /ui_ |
+| `AI_AGENT_STRATEGY` | — | Task Router mode executor selection (`smart`, `lowest_price`, `closest`, `fastest`) | `smart` |
+| `N8N_WEBHOOK_URL` | — | Optional N8N webhook for custom AI-based robot selection | _none_ |
 
 ### Scripts
 
@@ -74,8 +78,7 @@ npm run dev        # run in watch mode with nodemon
 | `POST` | `/api/commands/buy-cola` | Dispatch a logistics task `{ location, quantity }`. |
 | `POST` | `/api/payments/x402` | Example endpoint protected by x402 middleware. Post payment callbacks here. |
 
-> `POST /api/commands/dance` will automatically initiate the `/api/v1/robot/move_demo` flow on each selected robot, opening (and confirming) the x402 payment session when a reference is returned.
-> Command responses include a `summary` object describing the executor strategy, raw robot costs, and the suggested client price after applying the configured markup.
+> `POST /api/commands/dance` uses the **x402 V2** flow: request paid endpoint → receive **HTTP 402** with `x402Version: 2` and `accepts[]` (reference in `accepts[0].extra.reference`, `payTo`, `amount`, `asset`) → settle payment (gateway or direct Solana) → retry with **`X-X402-Reference`** header. Command responses include a `summary` with executor strategy, robot costs, and suggested client price (see [docs/X402_PROTOCOL.md](docs/X402_PROTOCOL.md)).
 
 ### Payment Providers
 
@@ -98,13 +101,16 @@ The direct provider creates on-chain SOL transfers via `@solana/web3.js`, waitin
 
 ### Web Console
 
-Open `http://localhost:3000/` (adjust host/port as needed). The console supports:
+- **Root** `http://localhost:3000/` redirects to the **public client UI** at `/client` (wallet payments, Direct/Task Router modes).
+- **Admin panel** `http://localhost:3000/ui` (auth required) supports:
+  - Registering robots and marking them as x402-secured.
+  - Viewing status, rich method cards (with pricing and parameters), and location per robot.
+  - Triggering `dance` and `buy-cola` commands.
+  - Map view with markers for every robot reporting coordinates.
+  - Manual refresh (per robot or bulk) and removal controls.
+  - RPC settings (Helius, custom URL) for the client page.
 
-- Registering robots and marking them as x402-secured.
-- Viewing status, rich method cards (with pricing and parameters), and location per robot.
-- Triggering `dance` and `buy-cola` commands.
-- Map view with markers for every robot reporting coordinates.
-- Manual refresh (per robot or bulk) and removal controls.
+See [CLIENT_UI.md](CLIENT_UI.md) for the public client API and modes.
 
 ### API Reference
 
@@ -138,7 +144,7 @@ Robots should expose at least:
 }
 ```
 
-If a robot is configured as `requiresX402`, all outgoing requests will include `x-402-signature` (and `x-402-wallet` when provided). Customise `src/services/x402Service.js` to align with your deployment’s x402 quickstart guidelines.
+If a robot is configured as `requiresX402`, paid endpoints are called without payment first; on **402** we parse the V2 body (`accepts[0]`), settle the invoice, then retry with **`X-X402-Reference`**. For optional legacy or custom auth, `x-402-signature` / `x-402-wallet` can be added in `src/services/x402Service.js`. Protocol details: [docs/X402_PROTOCOL.md](docs/X402_PROTOCOL.md) and [x402 Register Resource](https://www.x402scan.com/resources/register).
 
 ### Extending the Service
 
@@ -155,5 +161,5 @@ If a robot is configured as `requiresX402`, all outgoing requests will include `
 - Errors bubble through the Express error handler for consistent responses.
 - Comments and logging are in English for broader team collaboration, per requirements.
 
-[^1]: [X402 Next.js template from Solana](https://templates.solana.com/ru/x402-template)
+[^1]: [X402 Next.js template from Solana](https://templates.solana.com/x402-template)
 

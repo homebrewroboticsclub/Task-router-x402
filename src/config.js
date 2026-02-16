@@ -87,15 +87,21 @@ const loadConfig = (argv = []) => {
           2000,
         ),
       },
-      solana: {
-        rpcUrl: args['x402-solana-rpc-url'] || process.env.X402_SOLANA_RPC_URL || null,
-        commitment: args['x402-solana-commitment'] || process.env.X402_SOLANA_COMMITMENT || 'confirmed',
+      solana: (() => {
+        const solana = {
+          rpcProvider: (args['solana-rpc-provider'] || process.env.SOLANA_RPC_PROVIDER || 'helius').toLowerCase(),
+          heliusApiKey: args['helius-api-key'] || process.env.HELIUS_API_KEY || null,
+          rpcUrl: args['x402-solana-rpc-url'] || process.env.X402_SOLANA_RPC_URL || null,
+          commitment: args['x402-solana-commitment'] || process.env.X402_SOLANA_COMMITMENT || 'confirmed',
         minConfirmations: toNumber(
           args['x402-solana-min-confirmations'] || process.env.X402_SOLANA_MIN_CONFIRMATIONS,
           1,
         ),
         secretKey: args['x402-solana-secret-key'] || process.env.X402_SOLANA_SECRET_KEY || privateKey,
-      },
+      };
+        solana.rpcUrl = buildSolanaRpcUrl(solana);
+        return solana;
+      })(),
     },
     commands: {
       dance: {
@@ -124,8 +130,35 @@ const loadConfig = (argv = []) => {
   };
 };
 
+const HELIUS_MAINNET_URL = 'https://mainnet.helius-rpc.com/?api-key=';
+// PublicNode — free, no 403; mainnet-beta.solana.com often blocks requests
+const PUBLIC_RPC_URL = 'https://solana-rpc.publicnode.com';
+
+/**
+ * Returns resolved Solana RPC URL from settings (provider + key or custom URL).
+ * mainnet-beta.solana.com often blocks (403), so we do not use it as fallback.
+ * @param {{ rpcProvider?: string, heliusApiKey?: string, rpcUrl?: string }} solana
+ */
+const buildSolanaRpcUrl = (solana = {}) => {
+  const provider = (solana.rpcProvider || 'public').toLowerCase();
+  if (provider === 'custom' && solana.rpcUrl) {
+    return solana.rpcUrl;
+  }
+  if (provider === 'helius' && solana.heliusApiKey) {
+    return `${HELIUS_MAINNET_URL}${solana.heliusApiKey}`;
+  }
+  const fallback = solana.rpcUrl;
+  if (fallback && !fallback.includes('mainnet-beta.solana.com')) {
+    return fallback;
+  }
+  return PUBLIC_RPC_URL;
+};
+
 module.exports = {
   loadConfig,
   parseArgs,
+  buildSolanaRpcUrl,
+  HELIUS_MAINNET_URL,
+  PUBLIC_RPC_URL,
 };
 

@@ -6,7 +6,7 @@ const packageJson = require('../../package.json');
 const swaggerDefinition = {
   openapi: '3.0.1',
   info: {
-    title: 'x402 Raid App API',
+    title: 'x402 Task Router API',
     version: packageJson.version || '1.0.0',
     description: 'REST API for managing robots and orchestrating x402-enabled commands.',
   },

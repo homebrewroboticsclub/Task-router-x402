@@ -9,12 +9,18 @@ const RobotRegistry = require('./services/robotRegistry');
 const createCommandRouter = require('./services/commandRouter');
 const createRobotsRouter = require('./routes/robots');
 const createCommandsRouter = require('./routes/commands');
+const createClientRouter = require('./routes/client');
+const createAdminRouter = require('./routes/admin');
 const createX402PaymentMiddleware = require('./middleware/x402Payment');
+const createAuthMiddleware = require('./middleware/auth');
 const { swaggerSpec, swaggerUi } = require('./docs/swagger');
+const settingsStore = require('./services/settingsStore');
 
 const bootstrap = () => {
   const config = loadConfig(process.argv.slice(2));
   const { server } = config;
+
+  settingsStore.init(config);
 
   const x402Service = new X402Service(config.x402);
   const healthMonitor = createHealthMonitor({ config, x402Service });
@@ -26,7 +32,15 @@ const bootstrap = () => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  app.use('/ui', express.static(path.join(__dirname, '..', 'public')));
+  // Admin panel (auth required)
+  app.use('/ui', createAuthMiddleware(), express.static(path.join(__dirname, '..', 'public')));
+  
+  // Public client UI
+  app.use('/client', express.static(path.join(__dirname, '..', 'public', 'client')));
+  app.get('/client', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'client', 'index.html'));
+  });
+  
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
   app.get('/docs-json', (req, res) => {
     res.json(swaggerSpec);
@@ -72,6 +86,16 @@ const bootstrap = () => {
 
   app.use('/api/robots', createRobotsRouter({ registry }));
   app.use('/api/commands', createCommandsRouter({ commandRouter }));
+  app.use('/api/client', createClientRouter({
+    registry,
+    commandRouter,
+    x402Service,
+    config,
+    getSolanaRpcUrl: settingsStore.getSolanaRpcUrl,
+    getSettings: settingsStore.getSettings,
+    saveSettings: settingsStore.saveSettings,
+  }));
+  app.use('/api/admin', createAuthMiddleware(), createAdminRouter({ settingsStore }));
 
   /**
    * @openapi
@@ -117,8 +141,9 @@ const bootstrap = () => {
     },
   );
 
+  // Redirect root to client UI
   app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+    res.redirect('/client');
   });
 
   app.use((err, req, res, next) => {
@@ -127,7 +152,7 @@ const bootstrap = () => {
   });
 
   const serverInstance = app.listen(server.port, server.host, () => {
-    logger.info('x402 Raid App server started', {
+    logger.info('x402 Task Router server started', {
       host: server.host,
       port: server.port,
       x402Configured: x402Service.isConfigured(),

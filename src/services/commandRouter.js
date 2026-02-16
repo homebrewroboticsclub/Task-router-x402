@@ -3,6 +3,41 @@ const logger = require('../utils/logger');
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const DANCE_METHOD_IDENTIFIERS = ['/api/v1/robot/move_demo', '/commands/dance', 'move_demo'];
+
+/**
+ * Parse HTTP 402 body into a normalised invoice for settlement.
+ * Supports x402 V2 (accepts[0]: payTo, amount, asset, extra.reference) and legacy flat shape.
+ * @param {object} data - Response body of a 402 Payment Required
+ * @returns {{ reference: string, receiver: string, amount: string|number, asset: string } | null}
+ */
+const parse402PaymentRequest = (data) => {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  // x402 V2: accepts[] with scheme, network, amount, payTo, maxTimeoutSeconds, asset, extra
+  if (data.x402Version === 2 && Array.isArray(data.accepts) && data.accepts.length > 0) {
+    const accept = data.accepts[0];
+    const reference = accept?.extra?.reference;
+    const payTo = accept?.payTo;
+    const amount = accept?.amount;
+    const asset = accept?.asset;
+    if (reference && payTo && (amount !== undefined && amount !== null) && asset) {
+      return {
+        reference,
+        receiver: payTo,
+        amount,
+        asset,
+      };
+    }
+  }
+  // Legacy: top-level reference, receiver, amount, asset
+  const { reference, receiver, payTo, amount, asset } = data;
+  const to = receiver || payTo;
+  if (reference && to && (amount !== undefined && amount !== null) && asset) {
+    return { reference, receiver: to, amount, asset };
+  }
+  return null;
+};
 const BUY_COLA_METHOD_IDENTIFIERS = [
   '/commands/buy-cola',
   '/api/v1/robot/buy-cola',
@@ -320,17 +355,22 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
       };
     }
 
-    const invoice = initialResponse.data || {};
+    // x402 V2: payment details are in accepts[0] (reference in extra.reference, payTo, amount, asset)
+    const invoice = parse402PaymentRequest(initialResponse.data);
 
-    const { reference, receiver, amount, asset } = invoice;
+    const reference = invoice?.reference;
+    const receiver = invoice?.receiver;
+    const amount = invoice?.amount;
+    const asset = invoice?.asset;
+
     if (!reference || !receiver || asset === undefined || amount === undefined) {
       return {
         status: 'failed',
         stage: 'payment_initiation',
-        error: 'Missing payment fields in robot response',
+        error: 'Missing payment fields in robot 402 response (expected x402 V2 accepts[0] or legacy reference/receiver/amount/asset)',
         httpStatus: initialResponse.status,
         response: initialResponse.data,
-        invoice,
+        invoice: initialResponse.data || null,
         payment: null,
         attempts: 0,
         pricing: summarisePricing(methodBaseAmount, markupPercent),
@@ -338,9 +378,11 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
       };
     }
 
+    const normalisedInvoice = { reference, receiver, amount, asset };
+
     let settlement;
     try {
-      settlement = await x402Service.settleInvoice(invoice);
+      settlement = await x402Service.settleInvoice(normalisedInvoice);
       logger.info('Payment settlement result', settlement);
     } catch (error) {
       return {
@@ -349,10 +391,10 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
         error: error.response?.data?.error || error.message || 'Payment settlement failed',
         httpStatus: error.response?.status,
         response: error.response?.data,
-        invoice,
+        invoice: normalisedInvoice,
         payment: null,
         attempts: 0,
-        pricing: summarisePricing(deriveBaseAmount(null, invoice, methodBaseAmount), markupPercent),
+        pricing: summarisePricing(deriveBaseAmount(null, normalisedInvoice, methodBaseAmount), markupPercent),
         selection: selectionMeta,
       };
     }
@@ -394,7 +436,7 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
       }
     }
 
-    const baseAmount = deriveBaseAmount(settlement, invoice, methodBaseAmount);
+    const baseAmount = deriveBaseAmount(settlement, normalisedInvoice, methodBaseAmount);
     const pricing = summarisePricing(baseAmount, markupPercent);
 
     if (!finalResponse) {
@@ -402,7 +444,7 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
         status: 'failed',
         stage: 'payment_confirmation',
         error: 'Robot did not respond to payment confirmation',
-        invoice,
+        invoice: normalisedInvoice,
         payment: settlement,
         attempts: attempt,
         pricing,
@@ -416,7 +458,7 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
         stage: 'payment_confirmed',
         response: finalResponse.data,
         payment: settlement,
-        invoice,
+        invoice: normalisedInvoice,
         attempts: attempt,
         pricing,
         selection: selectionMeta,
@@ -429,7 +471,7 @@ const createCommandRouter = ({ config, registry, x402Service }) => {
       error: finalResponse.data?.error || finalResponse.data?.message || 'Robot rejected payment confirmation',
       httpStatus: finalResponse.status,
       response: finalResponse.data,
-      invoice,
+      invoice: normalisedInvoice,
       payment: settlement,
       attempts: attempt,
       pricing,

@@ -15,6 +15,10 @@ class RobotRegistry {
     return this.robots.get(robotId) || null;
   }
 
+  get(robotId) {
+    return this.getById(robotId);
+  }
+
   async addRobot({ name, host, port, requiresX402 = false }) {
     const id = uuid();
     const robot = {

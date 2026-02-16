@@ -20,11 +20,21 @@ const normalizeHealthPayload = (rawPayload, fallbackMessage, secure = false) => 
 
   const state = payload.status || rawPayload.status || 'unknown';
   const message = payload.message || rawPayload.message || fallback;
-  const availableMethods = Array.isArray(payload.availableMethods)
+  const rawMethods = Array.isArray(payload.availableMethods)
     ? payload.availableMethods
     : Array.isArray(rawPayload.availableMethods)
       ? rawPayload.availableMethods
       : [];
+
+  const isHealthMethod = (m) => {
+    if (typeof m === 'string') {
+      return /^\/?health\/?$/i.test(m.trim());
+    }
+    const path = (m?.path || m?.description || '').toString().toLowerCase();
+    return path === 'health' || path === '/health' || path.endsWith('/health');
+  };
+  const availableMethods = rawMethods.filter((m) => !isHealthMethod(m));
+
   const location = payload.location || rawPayload.location || null;
 
   return {
