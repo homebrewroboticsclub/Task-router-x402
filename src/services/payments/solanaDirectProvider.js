@@ -112,13 +112,14 @@ class SolanaDirectPaymentProvider {
       throw new Error('Invoice payload is required');
     }
 
-    const { receiver, amount, asset } = invoice;
+    const receiver = invoice.receiver ?? invoice.payTo;
+    const { amount, asset } = invoice;
     if (asset !== 'SOL') {
       throw new Error(`Unsupported asset "${asset}". Solana direct provider currently supports only SOL.`);
     }
 
     if (!receiver) {
-      throw new Error('Receiver account is required');
+      throw new Error('Receiver account (receiver/payTo) is required');
     }
 
     const numericAmount = typeof amount === 'string' ? Number(amount) : amount;

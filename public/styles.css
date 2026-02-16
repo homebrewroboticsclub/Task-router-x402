@@ -186,9 +186,71 @@ button:hover {
   color: #f87171;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.rpc-option {
+  margin-top: 0.5rem;
+}
+
+.panel-description {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-bottom: 1rem;
+}
+
 .commands {
   display: grid;
   gap: 1.25rem;
+}
+
+.available-actions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.available-actions {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.action-card {
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.action-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.action-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #e2e8f0;
+}
+
+.ai-agent-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.llm-config {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
 }
 
 .panel-header {

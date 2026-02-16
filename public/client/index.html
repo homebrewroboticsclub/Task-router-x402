@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>x402 Task Router - Public client</title>
+    <link rel="stylesheet" href="/client/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>x402 Task Router</h1>
+      <p>Public UI to run robot actions with Solana wallet payments</p>
+    </header>
+
+    <main>
+      <!-- Mode -->
+      <section class="panel mode-selector">
+        <h2>Mode</h2>
+        <div class="mode-buttons">
+          <button id="mode-direct" class="mode-btn active">Direct</button>
+          <button id="mode-router" class="mode-btn">Task Router</button>
+        </div>
+        <p class="mode-description" id="mode-description">
+          <strong>Direct:</strong> Choose robot and action. Full control.
+        </p>
+      </section>
+
+      <!-- Wallet -->
+      <section class="panel wallet-section">
+        <h2>Wallet</h2>
+        <div id="wallet-status" class="wallet-status">
+          <p>Wallet not connected</p>
+          <button id="connect-wallet" class="btn-primary">Connect wallet</button>
+        </div>
+        <div id="wallet-info" class="wallet-info hidden">
+          <p><strong>Address:</strong> <span id="wallet-address"></span></p>
+          <p><strong>Balance:</strong> <span id="wallet-balance"></span> SOL</p>
+          <button id="disconnect-wallet" class="btn-secondary">Disconnect</button>
+        </div>
+      </section>
+
+      <!-- Direct: robots list -->
+      <section id="direct-mode" class="panel">
+        <h2>Available robots</h2>
+        <div id="robots-list" class="robots-list">
+          <p class="loading">Loading robots...</p>
+        </div>
+      </section>
+
+      <!-- Task Router: actions -->
+      <section id="router-mode" class="panel hidden">
+        <h2>Available actions</h2>
+        <div id="commands-list" class="commands-list">
+          <p class="loading">Loading actions...</p>
+        </div>
+      </section>
+
+      <!-- Action form -->
+      <section id="action-form-section" class="panel hidden">
+        <h2 id="action-form-title">Execute action</h2>
+        <div id="action-form" class="action-form">
+          <!-- Filled dynamically -->
+        </div>
+        <div id="action-preview" class="action-preview hidden">
+          <h3>Estimated cost</h3>
+          <div class="price-info">
+            <p><strong>Cost:</strong> <span id="preview-price">-</span> SOL</p>
+            <p><strong>Robot:</strong> <span id="preview-robot">-</span></p>
+            <p><strong>Action:</strong> <span id="preview-action">-</span></p>
+          </div>
+          <button id="execute-action" class="btn-primary" disabled>Execute action</button>
+        </div>
+      </section>
+
+      <!-- Execution status -->
+      <section id="execution-status" class="panel hidden">
+        <h2>Execution status</h2>
+        <div id="status-content" class="status-content">
+          <!-- Filled dynamically -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Wallet selector modal -->
+    <div id="wallet-selector-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>Select wallet</h2>
+        <p class="wallet-selector-hint">Choose Solana wallet to connect. When opening the site by IP (not localhost), Phantom may not open — use Backpack. In incognito, allow popups. MetaMask is for Ethereum and not used here.</p>
+        <div id="wallet-selector-list" class="wallet-selector-list">
+          <!-- Filled by JS -->
+        </div>
+        <button type="button" id="wallet-selector-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Payment modal -->
+    <div id="payment-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>Payment</h2>
+        <div id="payment-details" class="payment-details">
+          <!-- Filled dynamically -->
+        </div>
+        <div class="modal-actions">
+          <button id="confirm-payment" class="btn-primary">Confirm payment</button>
+          <button id="cancel-payment" class="btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notifications" class="notifications"></div>
+
+    <script>
+      // Load Solana Web3.js globally
+      (function() {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@solana/web3.js@1.98.4/lib/index.iife.js';
+        script.onload = function() {
+          // IIFE may export to window.solanaWeb3 or global
+          if (typeof window.solanaWeb3 !== 'undefined') {
+            window.solanaWeb3Ready = true;
+            console.log('Solana Web3.js loaded');
+          } else if (typeof solanaWeb3 !== 'undefined') {
+            window.solanaWeb3 = solanaWeb3;
+            window.solanaWeb3Ready = true;
+            console.log('Solana Web3.js loaded');
+          }
+          if (window.onSolanaWeb3Ready) window.onSolanaWeb3Ready();
+        };
+        document.head.appendChild(script);
+      })();
+    </script>
+    <script type="module" src="/client/app.js"></script>
+  </body>
+</html>

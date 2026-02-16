@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>x402 Raid Control</title>
+    <title>x402 Task Router</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/ui/styles.css" />
   </head>
   <body>
     <header>
-      <h1>x402 Raid Control Panel</h1>
+      <h1>x402 Task Router Panel</h1>
       <p>
         Monitor connected robots and trigger commands. Data refreshes automatically every 15 seconds.
       </p>
@@ -17,43 +17,6 @@
 
     <main>
       <section class="top-layout">
-        <div class="panel commands-panel">
-          <h2>Demo Actions</h2>
-          <div class="commands">
-            <form id="dance-form">
-              <h3>Dance</h3>
-              <label>
-                Dancers
-                <select name="quantity">
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="all">All</option>
-                </select>
-              </label>
-              <button type="submit">Send</button>
-              <div id="dance-message" class="message"></div>
-            </form>
-
-            <form id="cola-form">
-              <h3>Buy Cola</h3>
-              <label>
-                Latitude
-                <input name="lat" type="number" step="0.0001" required />
-              </label>
-              <label>
-                Longitude
-                <input name="lng" type="number" step="0.0001" required />
-              </label>
-              <label>
-                Quantity
-                <input name="quantity" type="number" min="1" value="1" required />
-              </label>
-              <button type="submit">Send</button>
-              <div id="cola-message" class="message"></div>
-            </form>
-          </div>
-        </div>
-
         <div class="panel map-panel">
           <header class="panel-header">
             <h2>Robots Overview</h2>
@@ -61,6 +24,13 @@
           </header>
           <div id="robots-map" class="map"></div>
           <div id="robots-list" class="robots-list"></div>
+        </div>
+
+        <div class="panel available-actions-panel">
+          <h2>Available Actions</h2>
+          <div id="available-actions" class="available-actions">
+            <p class="loading">Loading actions from robots...</p>
+          </div>
         </div>
       </section>
 
@@ -86,6 +56,81 @@
           <button type="submit">Add Robot</button>
         </form>
         <div id="robot-form-message" class="message"></div>
+      </section>
+
+      <section class="panel solana-rpc-panel">
+        <h2>Solana RPC (Helius)</h2>
+        <p class="panel-description">RPC for the client page and payment verification. Helius is recommended.</p>
+        <form id="rpc-settings-form">
+          <label>
+            Provider
+            <select name="rpcProvider" id="rpc-provider">
+              <option value="helius">Helius</option>
+              <option value="public">Public (Solana)</option>
+              <option value="custom">Custom URL</option>
+            </select>
+          </label>
+          <div id="rpc-helius-row" class="rpc-option">
+            <label>
+              Helius API key
+              <input name="heliusApiKey" id="rpc-helius-key" type="password" placeholder="From dashboard.helius.dev" autocomplete="off" />
+              <small>Already set if the field is empty and you are not changing the provider</small>
+            </label>
+          </div>
+          <div id="rpc-custom-row" class="rpc-option hidden">
+            <label>
+              Custom RPC URL
+              <input name="customRpcUrl" id="rpc-custom-url" type="url" placeholder="https://..." />
+            </label>
+          </div>
+          <button type="submit">Save RPC settings</button>
+        </form>
+        <div id="rpc-settings-message" class="message"></div>
+      </section>
+
+      <section class="panel ai-agent-panel">
+        <h2>AI Agent Configuration</h2>
+        <form id="ai-agent-form">
+          <label>
+            Selection Strategy
+            <select name="strategy" id="ai-strategy">
+              <option value="smart">Smart (Multi-factor)</option>
+              <option value="lowest_price">Lowest Price</option>
+              <option value="closest">Closest</option>
+              <option value="fastest">Fastest</option>
+            </select>
+          </label>
+          <label>
+            N8N Webhook URL (optional)
+            <input name="n8nWebhookUrl" type="url" placeholder="https://your-n8n-instance.com/webhook" />
+          </label>
+          <h3>LLM Integration</h3>
+          <label>
+            LLM Provider
+            <select name="llmProvider" id="llm-provider">
+              <option value="">None</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="custom">Custom API</option>
+            </select>
+          </label>
+          <div id="llm-config" class="llm-config hidden">
+            <label>
+              API Key
+              <input name="llmApiKey" type="password" placeholder="Enter API key" />
+            </label>
+            <label>
+              API Endpoint (for custom)
+              <input name="llmEndpoint" type="url" placeholder="https://api.example.com/v1/chat" />
+            </label>
+            <label>
+              Model
+              <input name="llmModel" type="text" placeholder="gpt-4, claude-3, etc." />
+            </label>
+          </div>
+          <button type="submit">Save Configuration</button>
+        </form>
+        <div id="ai-agent-message" class="message"></div>
       </section>
     </main>
 

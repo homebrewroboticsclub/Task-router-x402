@@ -131,10 +131,12 @@ class X402Service {
       throw new Error('Payment invoice payload is missing');
     }
 
-    const { reference, receiver, amount, asset } = invoice;
+    // x402 V2 uses payTo; we accept receiver or payTo
+    const receiver = invoice.receiver ?? invoice.payTo;
+    const { reference, amount, asset } = invoice;
     const numericAmount = typeof amount === 'string' ? Number(amount) : amount;
     if (!reference || !receiver || Number.isNaN(numericAmount) || !Number.isFinite(numericAmount) || !asset) {
-      throw new Error('Payment invoice is missing required fields (reference, receiver, amount, asset)');
+      throw new Error('Payment invoice is missing required fields (reference, receiver/payTo, amount, asset)');
     }
 
     if (this.paymentProvider === 'solana-direct') {
@@ -146,7 +148,7 @@ class X402Service {
 
     const payload = {
       reference,
-      receiver,
+      receiver, // payTo in x402 V2 terms
       amount: numericAmount,
       asset,
     };
