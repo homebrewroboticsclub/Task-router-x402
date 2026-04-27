@@ -4,6 +4,75 @@ const logger = require('../utils/logger');
 const ClientPaymentService = require('../services/clientPaymentService');
 const AIAgentService = require('../services/aiAgentService');
 
+function commandIsAnyTeleop(command) {
+  if (command == null || typeof command !== 'string') {
+    return false;
+  }
+  const t = command.trim().toLowerCase();
+  return t === 'any_teleop' || t.includes('any_teleop');
+}
+
+function findAnyTeleopMethodEntry(robot) {
+  const methods = robot.status?.availableMethods || [];
+  return methods.find((m) => {
+    if (typeof m === 'string') {
+      return String(m).toLowerCase().includes('any_teleop');
+    }
+    const path = (m.path || '').toLowerCase();
+    const desc = (m.description || '').toLowerCase();
+    const call = (m.rosAction?.callable || '').toLowerCase();
+    return path.includes('any_teleop') || desc.includes('any_teleop') || call.includes('any_teleop');
+  });
+}
+
+function resolveAnyTeleopHttpPath(robot, teleopConfig) {
+  const hit = findAnyTeleopMethodEntry(robot);
+  if (hit && typeof hit === 'object' && hit.path) {
+    const p = hit.path;
+    return p.startsWith('/') ? p : `/${p}`;
+  }
+  return (teleopConfig && teleopConfig.anyTeleopHttpPath) || '/x402/any_teleop';
+}
+
+function estimatePriceForClientCommand(robot, command, teleopConfig) {
+  if (commandIsAnyTeleop(command)) {
+    const hit = findAnyTeleopMethodEntry(robot);
+    if (hit && typeof hit !== 'string' && hit.pricing?.amount != null) {
+      return hit.pricing.amount;
+    }
+    return teleopConfig?.anyTeleopFixedSol ?? 0.0005;
+  }
+  const methods = robot.status?.availableMethods || [];
+  const method = methods.find((m) => {
+    if (typeof m === 'string') {
+      return m.toLowerCase().includes(command.toLowerCase());
+    }
+    const path = m.path || '';
+    return path.toLowerCase().includes(command.toLowerCase());
+  });
+  if (method && typeof method !== 'string' && method.pricing) {
+    return method.pricing.amount || null;
+  }
+  return null;
+}
+
+function listReadyRobotsForClientCommand(registry, command) {
+  const ready = registry.list().filter((robot) => robot.status.state === 'ready');
+  if (commandIsAnyTeleop(command)) {
+    return ready;
+  }
+  return ready.filter((robot) => {
+    const methods = robot.status?.availableMethods || [];
+    return methods.some((m) => {
+      if (typeof m === 'string') {
+        return m.toLowerCase().includes(command.toLowerCase());
+      }
+      const path = m.path || '';
+      return path.toLowerCase().includes(command.toLowerCase());
+    });
+  });
+}
+
 const createClientRouter = ({
   registry,
   commandRouter,
@@ -80,7 +149,7 @@ const createClientRouter = ({
   });
 
   /**
-   * List available commands (for Task Router mode).
+   * List available commands (for RAID mode).
    */
   router.get('/commands', (req, res) => {
     try {
@@ -131,8 +200,8 @@ const createClientRouter = ({
     try {
       const { mode, robotId, command, parameters } = req.body;
 
-      if (!mode || (mode !== 'direct' && mode !== 'router')) {
-        return res.status(400).json({ error: 'Invalid mode. Must be "direct" or "router"' });
+      if (!mode || (mode !== 'direct' && mode !== 'raid')) {
+        return res.status(400).json({ error: 'Invalid mode. Must be "direct" or "raid"' });
       }
 
       let estimatedPrice = null;
@@ -157,36 +226,14 @@ const createClientRouter = ({
           name: robot.name || `Robot ${robot.id}`,
         };
 
-        // Find method and its price
-        const methods = robot.status?.availableMethods || [];
-        const method = methods.find((m) => {
-          if (typeof m === 'string') {
-            return m.toLowerCase().includes(command.toLowerCase());
-          }
-          const path = m.path || '';
-          return path.toLowerCase().includes(command.toLowerCase());
-        });
-
-        if (method && typeof method !== 'string' && method.pricing) {
-          estimatedPrice = method.pricing.amount || null;
-        }
+        estimatedPrice = estimatePriceForClientCommand(robot, command, config?.teleop);
       } else {
-        // Task Router mode: use AI agent for selection
+        // RAID mode: use AI agent for selection
         if (!command) {
-          return res.status(400).json({ error: 'command is required for router mode' });
+          return res.status(400).json({ error: 'command is required for raid mode' });
         }
 
-        const robots = registry.list().filter((robot) => robot.status.state === 'ready');
-        const robotsWithCommand = robots.filter(robot => {
-          const methods = robot.status?.availableMethods || [];
-          return methods.some(m => {
-            if (typeof m === 'string') {
-              return m.toLowerCase().includes(command.toLowerCase());
-            }
-            const path = m.path || '';
-            return path.toLowerCase().includes(command.toLowerCase());
-          });
-        });
+        const robotsWithCommand = listReadyRobotsForClientCommand(registry, command);
 
         if (robotsWithCommand.length === 0) {
           return res.status(404).json({ error: 'No available robot found for this command' });
@@ -208,17 +255,7 @@ const createClientRouter = ({
             name: selection.robot.name || `Robot ${selection.robot.id}`,
           };
 
-          const method = selection.robot.status?.availableMethods?.find(m => {
-            if (typeof m === 'string') {
-              return m.toLowerCase().includes(command.toLowerCase());
-            }
-            const path = m.path || '';
-            return path.toLowerCase().includes(command.toLowerCase());
-          });
-
-          if (method && typeof method !== 'string' && method.pricing) {
-            estimatedPrice = method.pricing.amount || null;
-          }
+          estimatedPrice = estimatePriceForClientCommand(selection.robot, command, config?.teleop);
         } catch (error) {
           logger.warn('AI agent selection failed in estimate, using first available', { error: error.message });
           // Fallback to first available
@@ -227,16 +264,7 @@ const createClientRouter = ({
             id: robot.id,
             name: robot.name || `Robot ${robot.id}`,
           };
-          const method = robot.status?.availableMethods?.find(m => {
-            if (typeof m === 'string') {
-              return m.toLowerCase().includes(command.toLowerCase());
-            }
-            const path = m.path || '';
-            return path.toLowerCase().includes(command.toLowerCase());
-          });
-          if (method && typeof method !== 'string' && method.pricing) {
-            estimatedPrice = method.pricing.amount || null;
-          }
+          estimatedPrice = estimatePriceForClientCommand(robot, command, config?.teleop);
         }
       }
 
@@ -260,7 +288,7 @@ const createClientRouter = ({
     try {
       const { mode, robotId, command, parameters = {} } = req.body;
 
-      if (!mode || (mode !== 'direct' && mode !== 'router')) {
+      if (!mode || (mode !== 'direct' && mode !== 'raid')) {
         return res.status(400).json({ error: 'Invalid mode' });
       }
 
@@ -270,14 +298,7 @@ const createClientRouter = ({
         robot = registry.getById(robotId);
         if (!robot) return res.status(404).json({ error: 'Robot not found' });
       } else {
-        const robots = registry.list().filter((r) => r.status.state === 'ready');
-        const withCommand = robots.filter((r) => {
-          const methods = r.status?.availableMethods || [];
-          return methods.some((m) => {
-            const path = (typeof m === 'object' ? m.path : m) || '';
-            return String(path).toLowerCase().includes(String(command).toLowerCase());
-          });
-        });
+        const withCommand = listReadyRobotsForClientCommand(registry, command);
         if (withCommand.length === 0) return res.status(404).json({ error: 'No robot for this command' });
         try {
           const sel = await aiAgentService.selectExecutor({ robots: withCommand, command, parameters, context: {} });
@@ -291,14 +312,19 @@ const createClientRouter = ({
         return res.status(409).json({ error: 'Robot not ready' });
       }
 
-      const methods = robot.status?.availableMethods || [];
-      const method = methods.find((m) => {
-        const path = (typeof m === 'object' ? m.path : m) || '';
-        return String(path).toLowerCase().includes(String(command).toLowerCase());
-      });
-      const endpoint = method && typeof method === 'object' && method.path
-        ? method.path
-        : `/commands/${command}`;
+      let endpoint;
+      if (commandIsAnyTeleop(command)) {
+        endpoint = resolveAnyTeleopHttpPath(robot, config?.teleop);
+      } else {
+        const methods = robot.status?.availableMethods || [];
+        const method = methods.find((m) => {
+          const path = (typeof m === 'object' ? m.path : m) || '';
+          return String(path).toLowerCase().includes(String(command).toLowerCase());
+        });
+        endpoint = method && typeof method === 'object' && method.path
+          ? method.path
+          : `/commands/${command}`;
+      }
 
       const url = `http://${robot.host}:${robot.port}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
@@ -335,7 +361,7 @@ const createClientRouter = ({
         paymentTransaction,
       } = req.body;
 
-      if (!mode || (mode !== 'direct' && mode !== 'router')) {
+      if (!mode || (mode !== 'direct' && mode !== 'raid')) {
         return res.status(400).json({ error: 'Invalid mode' });
       }
 
@@ -372,18 +398,8 @@ const createClientRouter = ({
           return res.status(404).json({ error: 'Robot not found' });
         }
       } else {
-        // Task Router mode: use AI agent for selection
-        const robots = registry.list().filter(r => r.status.state === 'ready');
-        const robotsWithCommand = robots.filter(r => {
-          const methods = r.status?.availableMethods || [];
-          return methods.some(m => {
-            if (typeof m === 'string') {
-              return m.toLowerCase().includes(command.toLowerCase());
-            }
-            const path = m.path || '';
-            return path.toLowerCase().includes(command.toLowerCase());
-          });
-        });
+        // RAID mode: use AI agent for selection
+        const robotsWithCommand = listReadyRobotsForClientCommand(registry, command);
 
         if (robotsWithCommand.length === 0) {
           return res.status(404).json({ error: 'No robots available for this command' });
@@ -420,32 +436,35 @@ const createClientRouter = ({
         });
       }
 
-      // Find method
-      const methods = robot.status?.availableMethods || [];
-      const method = methods.find(m => {
-        if (typeof m === 'string') {
-          return m.toLowerCase().includes(command.toLowerCase());
-        }
-        const path = m.path || '';
-        return path.toLowerCase().includes(command.toLowerCase());
-      });
-
-      if (!method) {
-        refundRequired = true;
-        return res.status(404).json({
-          error: 'Command not found on selected robot',
-          refundRequired: true,
+      let endpoint;
+      if (commandIsAnyTeleop(command)) {
+        endpoint = resolveAnyTeleopHttpPath(robot, config?.teleop);
+      } else {
+        const methods = robot.status?.availableMethods || [];
+        const method = methods.find((m) => {
+          if (typeof m === 'string') {
+            return m.toLowerCase().includes(command.toLowerCase());
+          }
+          const path = m.path || '';
+          return path.toLowerCase().includes(command.toLowerCase());
         });
-      }
 
-      // Resolve endpoint
-      const endpoint = typeof method === 'object' && method.path
-        ? method.path
-        : `/commands/${command}`;
+        if (!method) {
+          refundRequired = true;
+          return res.status(404).json({
+            error: 'Command not found on selected robot',
+            refundRequired: true,
+          });
+        }
+
+        endpoint = typeof method === 'object' && method.path
+          ? method.path
+          : `/commands/${command}`;
+      }
 
       // Execute command
       const baseUrl = `http://${robot.host}:${robot.port}`;
-      const url = `${baseUrl}${endpoint}`;
+      const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
       let response;
       try {

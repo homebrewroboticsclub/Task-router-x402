@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin login — Task-router-x402</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+    <style>
+      .login-wrap {
+        max-width: 420px;
+        margin: 3rem auto;
+        padding: 1.5rem;
+      }
+      .login-wrap h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .login-wrap .hint {
+        opacity: 0.85;
+        font-size: 0.9rem;
+        margin-bottom: 1.25rem;
+      }
+      .login-wrap label {
+        display: block;
+        margin-bottom: 1rem;
+      }
+      .login-wrap input[type='text'],
+      .login-wrap input[type='password'] {
+        width: 100%;
+        margin-top: 0.35rem;
+        box-sizing: border-box;
+      }
+      .login-wrap .error {
+        color: #c62828;
+        margin-bottom: 1rem;
+        min-height: 1.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="login-wrap">
+      <h1>Admin panel</h1>
+      <p class="hint">Sign in with <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> from the server environment.</p>
+      <p id="login-error" class="error" role="alert"></p>
+      <form id="admin-login-form">
+        <label>
+          Username
+          <input name="username" type="text" autocomplete="username" required />
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit">Sign in</button>
+      </form>
+    </main>
+    <script>
+      (function () {
+        function safeNext(raw) {
+          if (!raw || typeof raw !== 'string' || !raw.startsWith('/ui')) {
+            return '/ui/';
+          }
+          return raw;
+        }
+        var params = new URLSearchParams(window.location.search);
+        var next = safeNext(params.get('next'));
+        var form = document.getElementById('admin-login-form');
+        var errEl = document.getElementById('login-error');
+
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          errEl.textContent = '';
+          var fd = new FormData(form);
+          var username = String(fd.get('username') || '');
+          var password = String(fd.get('password') || '');
+          fetch('/api/admin/login', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: password }),
+          })
+            .then(function (res) {
+              if (!res.ok) {
+                return res.json().then(function (body) {
+                  throw new Error(body.error || 'Login failed');
+                });
+              }
+              window.location.assign(next);
+            })
+            .catch(function (err) {
+              errEl.textContent = err.message || 'Login failed';
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>

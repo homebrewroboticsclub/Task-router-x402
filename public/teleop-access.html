@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teleop access — Task-router-x402</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="admin-header-row">
+        <h1>Teleop: operators and robots</h1>
+        <nav class="admin-nav-links">
+          <a href="/ui/">Control panel</a>
+        </nav>
+        <button id="admin-logout" type="button" class="admin-logout-btn">Log out</button>
+      </div>
+      <p>
+        Grant or revoke which teleoperators may accept help requests per robot. If a robot has <strong>no</strong> grants,
+        any logged-in operator may still accept (backward compatible). If it has <strong>at least one</strong> grant, only
+        listed operators may accept.
+      </p>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>Active grants</h2>
+        <div id="grants-list" class="robots-list"><p class="loading">Loading…</p></div>
+      </section>
+
+      <section class="panel">
+        <h2>Add grant</h2>
+        <form id="grant-form">
+          <label>
+            Operator
+            <select name="teleoperatorId" id="grant-op" required></select>
+          </label>
+          <label>
+            Robot
+            <select name="robotId" id="grant-robot" required></select>
+          </label>
+          <button type="submit">Grant access</button>
+        </form>
+        <div id="grant-form-message" class="message"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Push allowlist to robot</h2>
+        <p class="panel-description">
+          Calls the robot’s <code>operatorRegistryUrl</code> with active operator IDs. Contract:
+          <code>docs/ROBOT_OPERATOR_SYNC.md</code> in the repo; OpenAPI tag <strong>Admin</strong> for
+          <code>POST /api/admin/robots/&#123;robotId&#125;/sync-operator-allowlist</code>.
+        </p>
+        <form id="sync-form">
+          <label>
+            Robot
+            <select name="robotId" id="sync-robot" required></select>
+          </label>
+          <button type="submit">Sync allowlist</button>
+        </form>
+        <div id="sync-message" class="message"></div>
+      </section>
+    </main>
+
+    <script>
+      const api = {
+        async request(path, options = {}) {
+          const response = await fetch(path, {
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+            body: options.body ? JSON.stringify(options.body) : undefined,
+          });
+          if (response.status === 401 && path.startsWith('/api/admin')) {
+            window.location.href = '/ui/login.html?next=' + encodeURIComponent(location.pathname);
+            throw new Error('Session expired');
+          }
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Request failed');
+          }
+          return payload;
+        },
+        listGrants() {
+          return this.request('/api/admin/teleoperator-grants');
+        },
+        listOperators() {
+          return this.request('/api/admin/teleoperators');
+        },
+        listRobots() {
+          return this.request('/api/admin/robots');
+        },
+        grant(body) {
+          return this.request('/api/admin/teleoperator-grants', { method: 'POST', body });
+        },
+        revoke(tid, rid) {
+          return this.request(`/api/admin/teleoperator-grants/${tid}/${rid}`, { method: 'DELETE' });
+        },
+        syncRobot(robotId) {
+          return this.request(`/api/admin/robots/${robotId}/sync-operator-allowlist`, { method: 'POST' });
+        },
+      };
+
+      function setMessage(el, text, kind) {
+        el.textContent = text;
+        el.className = 'message' + (kind ? ' ' + kind : '');
+      }
+
+      async function loadSelects() {
+        const [{ teleoperators }, { robots }] = await Promise.all([api.listOperators(), api.listRobots()]);
+        const opSel = document.getElementById('grant-op');
+        const rSel = document.getElementById('grant-robot');
+        const syncSel = document.getElementById('sync-robot');
+        const ops = teleoperators || [];
+        opSel.innerHTML = ops.length
+          ? ops.map((u) => `<option value="${u.id}">${u.login} (${u.id.slice(0, 8)}…)</option>`).join('')
+          : '<option value="" disabled selected>No accounts yet — register at /teleoperator first</option>';
+        const robotOpts = (robots || [])
+          .map((r) => `<option value="${r.id}">${r.name} — ${r.host}:${r.port}</option>`)
+          .join('');
+        rSel.innerHTML = robotOpts;
+        syncSel.innerHTML = robotOpts;
+      }
+
+      async function renderGrants() {
+        const el = document.getElementById('grants-list');
+        try {
+          const { grants } = await api.listGrants();
+          if (!grants?.length) {
+            el.innerHTML = '<p class="robots-list-empty">No active grants.</p>';
+            return;
+          }
+          el.innerHTML = grants
+            .map(
+              (g) => `
+            <div class="robot-card">
+              <div>
+                <strong>${g.teleoperatorLogin}</strong>
+                <span class="muted"> → robot ${g.robotId.slice(0, 8)}…</span>
+              </div>
+              <button type="button" data-revoke data-tid="${g.teleoperatorId}" data-rid="${g.robotId}">Revoke</button>
+            </div>`,
+            )
+            .join('');
+        } catch (e) {
+          el.innerHTML = `<p class="message error">${e.message}</p>`;
+        }
+      }
+
+      document.getElementById('grant-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const msg = document.getElementById('grant-form-message');
+        const fd = new FormData(ev.target);
+        try {
+          await api.grant({
+            teleoperatorId: fd.get('teleoperatorId'),
+            robotId: fd.get('robotId'),
+          });
+          setMessage(msg, 'Grant added', 'success');
+          await renderGrants();
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      document.getElementById('grants-list').addEventListener('click', async (ev) => {
+        const btn = ev.target.closest('[data-revoke]');
+        if (!btn) return;
+        try {
+          await api.revoke(btn.dataset.tid, btn.dataset.rid);
+          await renderGrants();
+        } catch (e) {
+          alert(e.message);
+        }
+      });
+
+      document.getElementById('sync-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const msg = document.getElementById('sync-message');
+        const fd = new FormData(ev.target);
+        try {
+          const res = await api.syncRobot(fd.get('robotId'));
+          setMessage(msg, JSON.stringify(res), res.skipped ? '' : 'success');
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      document.getElementById('admin-logout').addEventListener('click', async () => {
+        await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+        window.location.href = '/ui/login.html';
+      });
+
+      (async () => {
+        try {
+          await loadSelects();
+          await renderGrants();
+        } catch (e) {
+          document.getElementById('grants-list').innerHTML = `<p class="message error">${e.message}</p>`;
+        }
+      })();
+    </script>
+  </body>
+</html>

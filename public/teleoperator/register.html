@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teleoperator registration</title>
+    <link rel="stylesheet" href="/client/styles.css" />
+    <link rel="stylesheet" href="/teleoperator/styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Register</h1>
+      <p>Login, password, and Solana wallet public key</p>
+    </header>
+    <main>
+      <section class="panel">
+        <form id="register-form" class="auth-form">
+          <label>
+            Login
+            <input name="login" type="text" required autocomplete="username" minlength="2" maxlength="64" />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" required autocomplete="new-password" minlength="8" />
+          </label>
+          <label>
+            Wallet public key (Solana)
+            <input name="walletPublicKey" type="text" required placeholder="Base58 address" />
+          </label>
+          <p id="form-error" class="form-error hidden"></p>
+          <button type="submit" class="btn-primary">Create account</button>
+        </form>
+        <p class="auth-links">Already have an account? <a href="/teleoperator/login.html">Sign in</a></p>
+      </section>
+    </main>
+    <script src="/teleoperator/register.js"></script>
+  </body>
+</html>

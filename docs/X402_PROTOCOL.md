@@ -1,4 +1,4 @@
-# x402 Protocol (client flow in Task Router)
+# x402 Protocol (client flow in Task-router-x402)
 
 This app acts as an **x402 client** when calling paid robot endpoints. We implement the same exchange schema as the robot (x402 V2, x402scan/Bazaar compatible) so that 402 responses and retries are consistent.
 

@@ -1,0 +1,26 @@
+# Example systemd unit for running in the background without Docker.
+# 1. sudo cp deploy/task-router-x402.service.example /etc/systemd/system/task-router-x402.service
+# 2. Edit WorkingDirectory, User, ExecStart (path to node: which node), EnvironmentFile if needed.
+# 3. sudo systemctl daemon-reload && sudo systemctl enable --now task-router-x402
+# 4. sudo systemctl status task-router-x402
+#
+# mDNS (MDNS_ENABLED=true): needs multicast UDP 5353; check firewall if it fails.
+# Docker usually needs network_mode: host on the app service for mDNS.
+
+[Unit]
+Description=Task-router-x402 (Node.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# User=deploy
+WorkingDirectory=/opt/task-router-x402
+EnvironmentFile=/opt/task-router-x402/.env
+# Use full path to node (nvm: ~/.nvm/versions/node/v22.x.x/bin/node)
+ExecStart=/usr/bin/node /opt/task-router-x402/src/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

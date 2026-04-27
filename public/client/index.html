@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>x402 Task Router - Public client</title>
+    <title>Task-router-x402 — Public client</title>
     <link rel="stylesheet" href="/client/styles.css" />
   </head>
   <body>
     <header>
-      <h1>x402 Task Router</h1>
+      <h1>Task-router-x402</h1>
       <p>Public UI to run robot actions with Solana wallet payments</p>
     </header>
 
@@ -18,7 +18,7 @@
         <h2>Mode</h2>
         <div class="mode-buttons">
           <button id="mode-direct" class="mode-btn active">Direct</button>
-          <button id="mode-router" class="mode-btn">Task Router</button>
+          <button id="mode-raid" class="mode-btn">Task router</button>
         </div>
         <p class="mode-description" id="mode-description">
           <strong>Direct:</strong> Choose robot and action. Full control.
@@ -47,8 +47,8 @@
         </div>
       </section>
 
-      <!-- Task Router: actions -->
-      <section id="router-mode" class="panel hidden">
+      <!-- Task Router mode (API: raid): actions -->
+      <section id="raid-mode" class="panel hidden">
         <h2>Available actions</h2>
         <div id="commands-list" class="commands-list">
           <p class="loading">Loading actions...</p>

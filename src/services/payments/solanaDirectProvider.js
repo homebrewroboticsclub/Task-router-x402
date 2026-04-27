@@ -183,4 +183,6 @@ class SolanaDirectPaymentProvider {
 }
 
 module.exports = SolanaDirectPaymentProvider;
+/** @type {typeof parseSecretKey} */
+module.exports.parseSecretKey = parseSecretKey;
 

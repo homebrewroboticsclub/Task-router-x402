@@ -44,7 +44,7 @@ const loadSolanaWeb3 = () => {
 const LAMPORTS_PER_SOL = 1_000_000_000;
 
 // State
-let currentMode = 'direct'; // 'direct' | 'router'
+let currentMode = 'direct'; // 'direct' | 'raid'
 let wallet = null;
 let walletPublicKey = null;
 let connection = null;
@@ -73,7 +73,7 @@ function initConnection() {
 function setupEventListeners() {
   // Mode selection
   document.getElementById('mode-direct').addEventListener('click', () => setMode('direct'));
-  document.getElementById('mode-router').addEventListener('click', () => setMode('router'));
+  document.getElementById('mode-raid').addEventListener('click', () => setMode('raid'));
 
   // Wallet
   document.getElementById('connect-wallet').addEventListener('click', connectWallet);
@@ -100,17 +100,17 @@ async function loadSettings() {
 function setMode(mode) {
   currentMode = mode;
   document.getElementById('mode-direct').classList.toggle('active', mode === 'direct');
-  document.getElementById('mode-router').classList.toggle('active', mode === 'router');
+  document.getElementById('mode-raid').classList.toggle('active', mode === 'raid');
   
   document.getElementById('direct-mode').classList.toggle('hidden', mode !== 'direct');
-  document.getElementById('router-mode').classList.toggle('hidden', mode !== 'router');
+  document.getElementById('raid-mode').classList.toggle('hidden', mode !== 'raid');
   
   document.getElementById('action-form-section').classList.add('hidden');
   document.getElementById('execution-status').classList.add('hidden');
 
   const descriptions = {
     direct: '<strong>Direct:</strong> Choose robot and action. Full control over executor.',
-    router: '<strong>Task Router:</strong> System selects the best executor. Individual robots are hidden.',
+    raid: '<strong>Task router:</strong> System selects the best executor. Individual robots are hidden.',
   };
   document.getElementById('mode-description').innerHTML = descriptions[mode];
 
@@ -244,7 +244,7 @@ function selectAction(robot, method) {
 
 function selectCommand(cmd) {
   currentAction = {
-    mode: 'router',
+    mode: 'raid',
     command: cmd,
   };
   showActionForm();

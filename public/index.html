@@ -3,13 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>x402 Task Router</title>
+    <title>Task-router-x402</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="/ui/styles.css" />
   </head>
   <body>
     <header>
-      <h1>x402 Task Router Panel</h1>
+      <div class="admin-header-row">
+        <h1>Task-router-x402</h1>
+        <nav class="admin-nav-links">
+          <a href="/ui/teleop-access.html">Teleop access</a>
+        </nav>
+        <button id="admin-logout" type="button" class="admin-logout-btn">Log out</button>
+      </div>
       <p>
         Monitor connected robots and trigger commands. Data refreshes automatically every 15 seconds.
       </p>
@@ -52,6 +58,26 @@
           <label class="checkbox">
             <input type="checkbox" name="requiresX402" />
             Requires x402
+          </label>
+          <label>
+            ROSBridge host (optional)
+            <input name="rosbridgeHost" placeholder="defaults to Host" />
+          </label>
+          <label>
+            ROSBridge port
+            <input name="rosbridgePort" placeholder="9090" type="number" />
+          </label>
+          <label>
+            Teleop secret (for POST …/teleop/help)
+            <input name="teleopSecret" type="password" placeholder="LAN shared secret" autocomplete="off" />
+          </label>
+          <label>
+            Enrollment key (optional, stable device id)
+            <input name="enrollmentKey" placeholder="robot-serial-or-mac" autocomplete="off" />
+          </label>
+          <label>
+            Operator registry URL (optional)
+            <input name="operatorRegistryUrl" type="url" placeholder="http://robot:8080/api/raid/operators" />
           </label>
           <button type="submit">Add Robot</button>
         </form>

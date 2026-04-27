@@ -1,0 +1,53 @@
+# Full stack: PostgreSQL + Node app. Background: restart: unless-stopped.
+# Start: docker compose up -d --build
+# Stop: docker compose down (Postgres data in named volume x402_raid_pgdata persists; remove volume: docker compose down -v)
+# Logs: docker compose logs -f app
+#
+# In the app container DATABASE_URL points at the postgres service (port 5432 on the internal network).
+# Other settings from .env (Solana keys, TELEOPERATOR_JWT_SECRET, ADMIN_*, etc.).
+# Persistent JSON under config/ is mounted into the container.
+
+# Host volume name: <compose_project_name>_x402_raid_pgdata (default project name is the directory containing the compose file).
+# Data safety: avoid docker compose down -v; avoid docker volume prune without checking; see README.
+volumes:
+  x402_raid_pgdata:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: x402
+      POSTGRES_PASSWORD: x402
+      POSTGRES_DB: x402raid
+    volumes:
+      - x402_raid_pgdata:/var/lib/postgresql/data
+    # Localhost on the host only (127.0.0.1). The app container uses postgres:5432.
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U x402 -d x402raid"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+  app:
+    build: .
+    restart: unless-stopped
+    # mDNS (MDNS_ENABLED): on default bridge, multicast from the host often does not reach the container.
+    # For LAN advertisement use network_mode: host (then reconcile or remove ports).
+    # Bind on all host interfaces — reachable by server IP/domain, not only localhost
+    ports:
+      - "0.0.0.0:${APP_HOST_PORT:-3000}:3000"
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      # Inside Docker network Postgres is reached by service name, not localhost
+      DATABASE_URL: postgres://x402:x402@postgres:5432/x402raid
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config

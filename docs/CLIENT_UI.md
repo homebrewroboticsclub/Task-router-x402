@@ -1,4 +1,6 @@
-# Client UI for x402 Task Router
+# Client UI for Task-router-x402
+
+**Index:** [README.md](../README.md#documentation-index).
 
 ## Overview
 
@@ -6,8 +8,9 @@ Public interface for external users with Solana wallet payments and two operatio
 
 ## Access
 
-- **Public UI**: `http://localhost:3000/client` (root `/` redirects here)
+- **Public UI**: `http://localhost:3000/client`
 - **Admin panel** (auth required): `http://localhost:3000/ui`
+- **Teleoperator** (registration / login; requires `DATABASE_URL` on the server): `http://localhost:3000/teleoperator`
 
 ## Modes
 
@@ -16,7 +19,7 @@ Public interface for external users with Solana wallet payments and two operatio
 - Direct choice of robot and action
 - Full control over executor selection
 
-### Task Router Mode
+### Task Router mode (API value `raid`)
 - Individual robots are hidden
 - System selects the best executor automatically
 - Uses AI agent for selection
@@ -48,7 +51,7 @@ All SOL-compatible wallets are supported:
 List available robots (Direct mode).
 
 ### GET `/api/client/commands`
-List available commands (Task Router mode).
+List available commands (Task Router mode; API `mode`: `raid`).
 
 ### GET `/api/client/settings`
 Get RPC and client settings (no API key).
@@ -60,7 +63,7 @@ Save RPC settings (provider, Helius API key, custom URL).
 Get estimated price for an action.
 ```json
 {
-  "mode": "direct" | "router",
+  "mode": "direct" | "raid",
   "robotId": "robot-id",
   "command": "command-name",
   "parameters": {}
@@ -71,7 +74,7 @@ Get estimated price for an action.
 Execute action with client payment (retry to robot with X-X402-Reference).
 ```json
 {
-  "mode": "direct" | "router",
+  "mode": "direct" | "raid",
   "robotId": "robot-id",
   "command": "command-name",
   "parameters": {},
@@ -165,7 +168,7 @@ src/
     clientPaymentService.js
     settingsStore.js
     aiAgentService.js
-  middleware/auth.js
+  middleware/adminAuth.js
 ```
 
 ## Known limitations

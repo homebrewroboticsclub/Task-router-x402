@@ -14,12 +14,19 @@ let markersLayer = null;
 const api = {
   async request(path, options = {}) {
     const response = await fetch(path, {
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
       ...options,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
+
+    if (response.status === 401 && path.startsWith('/api/admin')) {
+      const next = `${location.pathname}${location.search || ''}`;
+      window.location.href = `/ui/login.html?next=${encodeURIComponent(next)}`;
+      throw new Error('Session expired');
+    }
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -30,25 +37,26 @@ const api = {
   },
 
   listRobots() {
-    return this.request('/api/robots');
+    return this.request('/api/admin/robots');
   },
 
   addRobot(data) {
-    return this.request('/api/robots', {
+    return this.request('/api/admin/robots', {
       method: 'POST',
       body: data,
     });
   },
 
   refreshRobot(id) {
-    return this.request(`/api/robots/${id}/refresh`, {
+    return this.request(`/api/admin/robots/${id}/refresh`, {
       method: 'POST',
     });
   },
 
   deleteRobot(id) {
-    return fetch(`/api/robots/${id}`, {
+    return fetch(`/api/admin/robots/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
   },
 
@@ -292,11 +300,31 @@ refreshAllButton.addEventListener('click', async () => {
 robotForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(robotForm);
+  const rosbridgePortRaw = formData.get('rosbridgePort');
+  const teleopSecretRaw = formData.get('teleopSecret');
+  const enrollmentKeyRaw = formData.get('enrollmentKey');
+  const operatorRegistryUrlRaw = formData.get('operatorRegistryUrl');
+  const rosbridgeHostRaw = formData.get('rosbridgeHost');
   const payload = {
     name: formData.get('name') || undefined,
     host: formData.get('host'),
     port: Number(formData.get('port')),
     requiresX402: formData.get('requiresX402') === 'on',
+    ...(rosbridgeHostRaw && String(rosbridgeHostRaw).trim()
+      ? { rosbridgeHost: String(rosbridgeHostRaw).trim() }
+      : {}),
+    ...(rosbridgePortRaw !== '' && rosbridgePortRaw != null
+      ? { rosbridgePort: Number(rosbridgePortRaw) }
+      : {}),
+    ...(teleopSecretRaw && String(teleopSecretRaw).trim()
+      ? { teleopSecret: String(teleopSecretRaw).trim() }
+      : {}),
+    ...(enrollmentKeyRaw && String(enrollmentKeyRaw).trim()
+      ? { enrollmentKey: String(enrollmentKeyRaw).trim() }
+      : {}),
+    ...(operatorRegistryUrlRaw && String(operatorRegistryUrlRaw).trim()
+      ? { operatorRegistryUrl: String(operatorRegistryUrlRaw).trim() }
+      : {}),
   };
 
   try {
@@ -467,6 +495,15 @@ if (rpcSettingsForm) {
     }
   });
 }
+
+document.getElementById('admin-logout')?.addEventListener('click', async () => {
+  try {
+    await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+  } catch {
+    // still leave panel
+  }
+  window.location.href = '/ui/login.html';
+});
 
 setInterval(renderRobots, 15000);
 initMap();
