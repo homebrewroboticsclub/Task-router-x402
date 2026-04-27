@@ -3,7 +3,8 @@
 # Stop: docker compose down (Postgres data in named volume x402_raid_pgdata persists; remove volume: docker compose down -v)
 # Logs: docker compose logs -f app
 #
-# In the app container DATABASE_URL points at the postgres service (port 5432 on the internal network).
+# DB connectivity: some hosts block container↔container TCP on the compose bridge (see DATA_NODE). If the app
+# cannot use postgres:5432, use host networking for `app` and DATABASE_URL @127.0.0.1:<host port> (see below).
 # Other settings from .env (Solana keys, TELEOPERATOR_JWT_SECRET, ADMIN_*, etc.).
 # Persistent JSON under config/ is mounted into the container.
 
@@ -22,9 +23,10 @@ services:
       POSTGRES_DB: x402raid
     volumes:
       - x402_raid_pgdata:/var/lib/postgresql/data
-    # Localhost on the host only (127.0.0.1). The app container uses postgres:5432.
+    # Host port 5436 avoids collisions. If this is 127.0.0.1-only, run `app` with network_mode: host and
+    # DATABASE_URL @127.0.0.1:5436 (do not rely on host.docker.internal for this publish mode).
     ports:
-      - "127.0.0.1:5434:5432"
+      - "127.0.0.1:5436:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U x402 -d x402raid"]
       interval: 3s
@@ -33,19 +35,20 @@ services:
       start_period: 5s
 
   app:
-    build: .
+    build:
+      context: .
+      # Use host DNS during image build (avoids EAI_AGAIN for registry.npmjs.org on some Docker setups).
+      network: host
     restart: unless-stopped
-    # mDNS (MDNS_ENABLED): on default bridge, multicast from the host often does not reach the container.
-    # For LAN advertisement use network_mode: host (then reconcile or remove ports).
-    # Bind on all host interfaces — reachable by server IP/domain, not only localhost
-    ports:
-      - "0.0.0.0:${APP_HOST_PORT:-3000}:3000"
+    # Share host network so the app reaches Postgres on 127.0.0.1:5436 without container↔container bridge TCP
+    # (and without recreating the Postgres container to change port publish). `ports:` is ignored in host mode.
+    # The process binds HOST:PORT on the machine; if you see EADDRINUSE, pick a free port (set PORT in `.env`).
+    network_mode: host
     env_file: .env
     environment:
       HOST: 0.0.0.0
-      PORT: "3000"
-      # Inside Docker network Postgres is reached by service name, not localhost
-      DATABASE_URL: postgres://x402:x402@postgres:5432/x402raid
+      PORT: "${PORT:-3000}"
+      DATABASE_URL: postgres://x402:x402@127.0.0.1:5436/x402raid
     depends_on:
       postgres:
         condition: service_healthy

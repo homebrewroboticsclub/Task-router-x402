@@ -3,32 +3,78 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Teleoperator sign in</title>
-    <link rel="stylesheet" href="/client/styles.css" />
-    <link rel="stylesheet" href="/teleoperator/styles.css" />
+    <title>Sign In — Homebrew Robotics · Task Router</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
-    <header>
-      <h1>Sign in</h1>
-      <p>Login and password (wallet verification may be added later)</p>
-    </header>
-    <main>
-      <section class="panel">
-        <form id="login-form" class="auth-form">
-          <label>
-            Login
-            <input name="login" type="text" required autocomplete="username" />
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" required autocomplete="current-password" />
-          </label>
-          <p id="form-error" class="form-error hidden"></p>
-          <button type="submit" class="btn-primary">Sign in</button>
-        </form>
-        <p class="auth-links">No account? <a href="/teleoperator/register.html">Register</a></p>
-      </section>
+  <body class="min-h-screen flex flex-col bg-slate-900">
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+          <a href="/client" class="flex items-center gap-2 hover:opacity-90 transition-opacity no-underline">
+            <img src="/brand/hbr-mark.png" alt="Homebrew Robotics" width="32" height="32" class="h-8 w-8 object-contain shrink-0" />
+            <div class="flex flex-col leading-tight text-left">
+              <span class="text-lg font-bold text-white tracking-tight">Homebrew Robotics</span>
+              <span class="text-xs text-slate-400">Task Router — Teleoperator</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="flex-grow flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+          <p class="text-slate-400">Sign in to access your dashboard and active tasks.</p>
+        </div>
+
+        <section class="panel">
+          <form id="login-form" class="space-y-5">
+            <div>
+              <label class="label-text">Login Username</label>
+              <input name="login" type="text" required autocomplete="username" class="input-field" placeholder="Enter your username" />
+            </div>
+            <div>
+              <label class="label-text">Password</label>
+              <input name="password" type="password" required autocomplete="current-password" class="input-field" placeholder="••••••••" />
+            </div>
+            
+            <p id="form-error" class="hidden text-sm text-red-400 bg-red-400/10 border border-red-400/20 p-3 rounded-md"></p>
+            
+            <button type="submit" class="btn-primary w-full py-2.5 mt-2">Sign In</button>
+          </form>
+          
+          <div class="mt-6 text-center text-sm text-slate-400">
+            Don't have an account? <a href="/teleoperator/register.html" class="text-indigo-400 hover:text-indigo-300 font-medium">Register here</a>
+          </div>
+        </section>
+      </div>
     </main>
     <script src="/teleoperator/login.js"></script>
+    <script>
+      // Add visual feedback to form submission
+      document.getElementById('login-form').addEventListener('submit', (e) => {
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.textContent;
+        // The actual submission is handled by login.js, we just add UI polish here
+        setTimeout(() => {
+          if (!e.defaultPrevented) {
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Signing in...';
+            btn.disabled = true;
+            
+            // Reset if error appears (handled by login.js which removes 'hidden' from error)
+            const observer = new MutationObserver(() => {
+              if (!document.getElementById('form-error').classList.contains('hidden')) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+              }
+            });
+            observer.observe(document.getElementById('form-error'), { attributes: true });
+          }
+        }, 10);
+      });
+    </script>
   </body>
 </html>

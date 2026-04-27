@@ -26,6 +26,9 @@ async function ensureRobotSchema(pool) {
   await pool.query(
     `ALTER TABLE robots ADD COLUMN IF NOT EXISTS dataset_http_port INTEGER;`,
   );
+  await pool.query(
+    `ALTER TABLE robots ADD COLUMN IF NOT EXISTS data_node_sync_override JSONB;`,
+  );
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS robots_enrollment_key_unique
     ON robots (enrollment_key) WHERE enrollment_key IS NOT NULL AND enrollment_key <> '';

@@ -7,6 +7,9 @@ const MAX_SITUATION_REPORT_BYTES = 65536;
 const MAX_KYR_PEAQ_CONTEXT_BYTES = 65536;
 const MAX_PEAQ_CLAIM_JSON_BYTES = 65536;
 
+/** Max UTF-8 bytes per optional DATA_NODE correlation id (docs/RAID_APP_DATA_NODE_CORRELATION_SPEC.md). */
+const MAX_DATA_NODE_CORRELATION_ID_BYTES = 1024;
+
 class KyrPeaqContextInvalidError extends Error {
   constructor(message = 'metadata.kyr_peaq_context must be a plain object when provided') {
     super(message);
@@ -138,10 +141,29 @@ function coerceMetadataString(v) {
 }
 
 /**
- * Normalize robot POST …/teleop/help body per docs/RAID_APP_TELEOP_HELP_SPEC.md.
+ * @param {Record<string, unknown>} rawMeta
+ * @param {string} key
+ * @param {number} maxBytes
+ * @returns {string}
+ */
+function normalizeCorrelationIdField(rawMeta, key, maxBytes) {
+  let s = coerceMetadataString(rawMeta[key]);
+  delete rawMeta[key];
+  const byteLength = Buffer.byteLength(s, 'utf8');
+  if (byteLength > maxBytes) {
+    logger.warn(`metadata.${key} truncated to max UTF-8 length`, { byteLength, maxBytes });
+    s = truncateUtf8(s, maxBytes);
+  }
+  return s;
+}
+
+/**
+ * Normalize robot POST …/teleop/help body per docs/RAID_APP_TELEOP_HELP_SPEC.md
+ * and optional DATA_NODE correlation fields (docs/RAID_APP_DATA_NODE_CORRELATION_SPEC.md).
  * `message` must be a string (caller validates).
  * Missing `metadata` or keys → empty strings; extra keys preserved under `metadata`.
  * `situation_report` truncated at MAX_SITUATION_REPORT_BYTES UTF-8 with a warning log.
+ * `dataset_id`, `kyr_session_id`, `kyr_robot_id` coerced to strings and truncated at MAX_DATA_NODE_CORRELATION_ID_BYTES.
  *
  * @param {object} body - parsed JSON object
  * @returns {{ message: string, metadata: Record<string, unknown> }}
@@ -172,6 +194,10 @@ function normalizeRobotTeleopHelpBody(body) {
     situation_report = truncateUtf8(situation_report, MAX_SITUATION_REPORT_BYTES);
   }
 
+  const dataset_id = normalizeCorrelationIdField(rawMeta, 'dataset_id', MAX_DATA_NODE_CORRELATION_ID_BYTES);
+  const kyr_session_id = normalizeCorrelationIdField(rawMeta, 'kyr_session_id', MAX_DATA_NODE_CORRELATION_ID_BYTES);
+  const kyr_robot_id = normalizeCorrelationIdField(rawMeta, 'kyr_robot_id', MAX_DATA_NODE_CORRELATION_ID_BYTES);
+
   return {
     message,
     metadata: {
@@ -179,12 +205,16 @@ function normalizeRobotTeleopHelpBody(body) {
       task_id,
       error_context,
       situation_report,
+      dataset_id,
+      kyr_session_id,
+      kyr_robot_id,
     },
   };
 }
 
 module.exports = {
   MAX_SITUATION_REPORT_BYTES,
+  MAX_DATA_NODE_CORRELATION_ID_BYTES,
   MAX_KYR_PEAQ_CONTEXT_BYTES,
   MAX_PEAQ_CLAIM_JSON_BYTES,
   KyrPeaqContextInvalidError,

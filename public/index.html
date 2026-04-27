@@ -3,165 +3,431 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Task-router-x402</title>
+    <title>Admin Dashboard — Homebrew Robotics · Task Router</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/ui/styles.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
-    <header>
-      <div class="admin-header-row">
-        <h1>Task-router-x402</h1>
-        <nav class="admin-nav-links">
-          <a href="/ui/teleop-access.html">Teleop access</a>
-        </nav>
-        <button id="admin-logout" type="button" class="admin-logout-btn">Log out</button>
+  <body class="min-h-screen flex flex-col bg-slate-900">
+    <!-- Top Navigation Bar -->
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+          <a href="/client" class="flex items-center gap-2 hover:opacity-90 transition-opacity no-underline">
+            <img src="/brand/hbr-mark.png" alt="Homebrew Robotics" width="32" height="32" class="h-8 w-8 object-contain shrink-0" />
+            <div class="flex flex-col leading-tight text-left">
+              <span class="text-lg font-bold text-white tracking-tight">Homebrew Robotics</span>
+              <span class="text-xs text-slate-400">Task Router — Admin</span>
+            </div>
+          </a>
+          <div class="flex gap-4 items-center">
+            <a href="/ui/teleop-access.html" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">Teleop Access</a>
+            <a href="/ui/services-registration.html" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">Services</a>
+            <button type="button" id="admin-logout" class="btn-secondary text-xs px-3 py-1.5 h-8 ml-2">Log Out</button>
+          </div>
+        </div>
       </div>
-      <p>
-        Monitor connected robots and trigger commands. Data refreshes automatically every 15 seconds.
-      </p>
-    </header>
+    </nav>
 
-    <main>
-      <section class="top-layout">
-        <div class="panel map-panel">
-          <header class="panel-header">
-            <h2>Robots Overview</h2>
-            <button id="refresh-all" type="button">Refresh All</button>
-          </header>
-          <div id="robots-map" class="map"></div>
-          <div id="robots-list" class="robots-list"></div>
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow">
+      
+      <div class="flex justify-between items-end mb-8">
+        <div>
+          <h1 class="text-2xl font-bold text-white">System Overview</h1>
+          <p class="text-slate-400 text-sm mt-1">Monitor connected robots, manage fleet enrollment, and configure RPC</p>
+        </div>
+        <div>
+          <button id="refresh-all" type="button" class="btn-secondary text-sm flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Overview Widget -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div class="panel p-4 flex flex-col justify-between bg-slate-800/40">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-sm font-medium text-slate-400">Active Robots</h3>
+            <span class="text-indigo-400 bg-indigo-400/10 p-1.5 rounded-md">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" />
+              </svg>
+            </span>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl font-bold text-white" id="stat-robots">0</span>
+          </div>
         </div>
 
-        <div class="panel available-actions-panel">
-          <h2>Available Actions</h2>
-          <div id="available-actions" class="available-actions">
-            <p class="loading">Loading actions from robots...</p>
+        <div class="panel p-4 flex flex-col justify-between bg-slate-800/40">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-sm font-medium text-slate-400">Registered Operators</h3>
+            <span class="text-green-400 bg-green-400/10 p-1.5 rounded-md">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+            </span>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl font-bold text-white" id="stat-operators">-</span>
           </div>
         </div>
-      </section>
 
-      <section class="panel register-panel">
-        <h2>Register Robot</h2>
-        <form id="robot-form">
-          <label>
-            Name
-            <input name="name" placeholder="Robo-1" />
-          </label>
-          <label>
-            Host
-            <input name="host" placeholder="192.168.1.10" required />
-          </label>
-          <label>
-            Port
-            <input name="port" placeholder="8080" type="number" required />
-          </label>
-          <label class="checkbox">
-            <input type="checkbox" name="requiresX402" />
-            Requires x402
-          </label>
-          <label>
-            ROSBridge host (optional)
-            <input name="rosbridgeHost" placeholder="defaults to Host" />
-          </label>
-          <label>
-            ROSBridge port
-            <input name="rosbridgePort" placeholder="9090" type="number" />
-          </label>
-          <label>
-            Teleop secret (for POST …/teleop/help)
-            <input name="teleopSecret" type="password" placeholder="LAN shared secret" autocomplete="off" />
-          </label>
-          <label>
-            Enrollment key (optional, stable device id)
-            <input name="enrollmentKey" placeholder="robot-serial-or-mac" autocomplete="off" />
-          </label>
-          <label>
-            Operator registry URL (optional)
-            <input name="operatorRegistryUrl" type="url" placeholder="http://robot:8080/api/raid/operators" />
-          </label>
-          <button type="submit">Add Robot</button>
-        </form>
-        <div id="robot-form-message" class="message"></div>
-      </section>
+        <div class="panel p-4 flex flex-col justify-between bg-slate-800/40 border-solana/20">
+          <div class="flex justify-between items-start mb-2">
+            <h3 class="text-sm font-medium text-slate-400">Total Commands</h3>
+            <span class="text-solana bg-solana/10 p-1.5 rounded-md">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 017.143-3.16l-1.272 1.273a4.012 4.012 0 00-4.6 2.052l-1.271-.165zm1.364 4.542a6.012 6.012 0 003.16 7.143l1.273-1.272a4.012 4.012 0 01-2.052-4.6l-.165-1.271zm8.972 3.16a6.012 6.012 0 00-7.143-3.16l1.272-1.273a4.012 4.012 0 014.6 2.052l1.271.165zm-1.364-4.542a6.012 6.012 0 01-3.16-7.143l-1.273 1.272a4.012 4.012 0 002.052 4.6l.165 1.271z" clip-rule="evenodd" />
+              </svg>
+            </span>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-2xl font-bold text-solana" id="stat-commands">-</span>
+          </div>
+        </div>
+      </div>
 
-      <section class="panel solana-rpc-panel">
-        <h2>Solana RPC (Helius)</h2>
-        <p class="panel-description">RPC for the client page and payment verification. Helius is recommended.</p>
-        <form id="rpc-settings-form">
-          <label>
-            Provider
-            <select name="rpcProvider" id="rpc-provider">
-              <option value="helius">Helius</option>
-              <option value="public">Public (Solana)</option>
-              <option value="custom">Custom URL</option>
-            </select>
-          </label>
-          <div id="rpc-helius-row" class="rpc-option">
-            <label>
-              Helius API key
-              <input name="heliusApiKey" id="rpc-helius-key" type="password" placeholder="From dashboard.helius.dev" autocomplete="off" />
-              <small>Already set if the field is empty and you are not changing the provider</small>
-            </label>
-          </div>
-          <div id="rpc-custom-row" class="rpc-option hidden">
-            <label>
-              Custom RPC URL
-              <input name="customRpcUrl" id="rpc-custom-url" type="url" placeholder="https://..." />
-            </label>
-          </div>
-          <button type="submit">Save RPC settings</button>
-        </form>
-        <div id="rpc-settings-message" class="message"></div>
-      </section>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left/Main Column: Map & Robots -->
+        <div class="lg:col-span-2 space-y-6">
+          <section class="panel p-0 overflow-hidden flex flex-col h-[500px] border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+            <header class="p-4 border-b border-slate-700 bg-slate-900 flex justify-between items-center">
+              <h2 class="text-lg font-semibold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z" clip-rule="evenodd" />
+                </svg>
+                Fleet Geography
+              </h2>
+            </header>
+            <div id="robots-map" class="flex-grow z-0 relative bg-slate-800/50"></div>
+          </section>
 
-      <section class="panel ai-agent-panel">
-        <h2>AI Agent Configuration</h2>
-        <form id="ai-agent-form">
-          <label>
-            Selection Strategy
-            <select name="strategy" id="ai-strategy">
-              <option value="smart">Smart (Multi-factor)</option>
-              <option value="lowest_price">Lowest Price</option>
-              <option value="closest">Closest</option>
-              <option value="fastest">Fastest</option>
-            </select>
-          </label>
-          <label>
-            N8N Webhook URL (optional)
-            <input name="n8nWebhookUrl" type="url" placeholder="https://your-n8n-instance.com/webhook" />
-          </label>
-          <h3>LLM Integration</h3>
-          <label>
-            LLM Provider
-            <select name="llmProvider" id="llm-provider">
-              <option value="">None</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic (Claude)</option>
-              <option value="custom">Custom API</option>
-            </select>
-          </label>
-          <div id="llm-config" class="llm-config hidden">
-            <label>
-              API Key
-              <input name="llmApiKey" type="password" placeholder="Enter API key" />
-            </label>
-            <label>
-              API Endpoint (for custom)
-              <input name="llmEndpoint" type="url" placeholder="https://api.example.com/v1/chat" />
-            </label>
-            <label>
-              Model
-              <input name="llmModel" type="text" placeholder="gpt-4, claude-3, etc." />
-            </label>
-          </div>
-          <button type="submit">Save Configuration</button>
-        </form>
-        <div id="ai-agent-message" class="message"></div>
-      </section>
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4">Connected Robots</h2>
+            <div id="robots-list" class="space-y-3 custom-scrollbar max-h-80 overflow-y-auto pr-2">
+              <div class="text-center text-slate-500 py-8">Loading fleet...</div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Right Column: Registration & RPC -->
+        <div class="space-y-6">
+          
+          <!-- Robot Fleet Enrollment -->
+          <section class="panel border-green-500/20 shadow-lg shadow-green-500/5">
+            <div class="flex justify-between items-start mb-4">
+              <h2 class="text-lg font-semibold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zM13 3a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1V4a1 1 0 00-1-1h-3zm1 2v1h1V5h-1z" clip-rule="evenodd" />
+                  <path d="M11 4a1 1 0 10-2 0v1a1 1 0 002 0V4zM10 7a1 1 0 011 1v1h2a1 1 0 110 2h-3a1 1 0 01-1-1V8a1 1 0 011-1zM16 9a1 1 0 100 2 1 1 0 000-2zM9 13a1 1 0 011-1h1a1 1 0 110 2v2a1 1 0 11-2 0v-3zM7 11a1 1 0 100-2H4a1 1 0 100 2h3zM17 13a1 1 0 01-1 1h-2a1 1 0 110-2h2a1 1 0 011 1zM16 17a1 1 0 100-2h-3a1 1 0 100 2h3z" />
+                </svg>
+                Fleet Enrollment
+              </h2>
+            </div>
+            
+            <p class="text-sm text-slate-400 mb-4">
+              Robots call RAID <code class="text-slate-500">POST /api/robots/enroll</code> using the <strong class="text-slate-300">fleet enrollment</strong> secret (QR below). That is <strong class="text-slate-300">not</strong> the same as <strong class="text-slate-300">RAID→robot</strong> (<code class="text-slate-500">X-Raid-To-Robot-Secret</code>), which RAID uses only when pushing the teleop allowlist to the robot&rsquo;s <code class="text-slate-500">operatorRegistryUrl</code>. See
+              <a href="/ui/services-registration.html" class="text-indigo-400 hover:text-indigo-300">Services registration</a>
+              or <code class="text-slate-500">docs/SERVICES_REGISTRATION_ROBOT.md</code>.
+            </p>
+            <p class="text-xs text-slate-500 mb-6">
+              After a database reset, robots do not reappear until each node enrolls again (or you add them in admin). Clipboard copy may require HTTPS or localhost; if copy fails, scan the QR or open Services registration.
+            </p>
+            
+            <div class="bg-slate-900 rounded-xl p-6 border border-slate-700 flex flex-col items-center justify-center mb-4">
+              <div id="qrcode-container" class="bg-white p-3 rounded-lg mb-4 shadow-sm">
+                <!-- QR Code generated here -->
+                <div class="w-40 h-40 bg-slate-100 flex items-center justify-center text-slate-400 text-xs">Loading QR...</div>
+              </div>
+              <div class="w-full">
+                <label class="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-2 text-center">Enrollment Secret</label>
+                <div class="flex items-center">
+                  <input type="text" id="enrollment-secret-display" class="input-field text-center font-mono text-sm border-r-0 rounded-r-none bg-slate-800" readonly value="Loading..." />
+                  <button id="copy-secret-btn" class="btn-primary rounded-l-none h-[38px] px-3 bg-slate-700 hover:bg-slate-600 border-y border-r border-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-center mt-2 space-y-1">
+              <a href="/ui/services-registration.html" class="text-sm text-indigo-400 hover:text-indigo-300">Manage Secrets & Services &rarr;</a>
+              <p class="text-xs text-slate-500 max-w-xs mx-auto">
+                Secret is not auto-generated: set <code class="text-slate-400">ROBOT_FLEET_ENROLLMENT_SECRET</code> in the server env or store it under Services registration (file overlay).
+              </p>
+            </div>
+          </section>
+
+          <!-- Available Actions (preview) -->
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4">Fleet Actions</h2>
+            <div id="available-actions" class="space-y-2">
+              <p class="loading text-sm text-slate-500 italic">Loading actions from robots...</p>
+            </div>
+          </section>
+
+          <!-- Settings RPC -->
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4">Solana RPC</h2>
+            <form id="rpc-settings-form" class="space-y-4">
+              <div>
+                <label class="label-text">Provider</label>
+                <select name="rpcProvider" id="rpc-provider" class="input-field">
+                  <option value="helius">Helius (Recommended)</option>
+                  <option value="public">Public (Solana)</option>
+                  <option value="custom">Custom URL</option>
+                </select>
+              </div>
+              
+              <div id="rpc-helius-row" class="rpc-option">
+                <label class="label-text">Helius API key</label>
+                <input name="heliusApiKey" id="rpc-helius-key" type="password" placeholder="From dashboard.helius.dev" autocomplete="off" class="input-field" />
+                <p class="text-xs text-slate-500 mt-1">Leave empty to keep current key</p>
+              </div>
+              
+              <div id="rpc-custom-row" class="rpc-option hidden">
+                <label class="label-text">Custom RPC URL</label>
+                <input name="customRpcUrl" id="rpc-custom-url" type="url" placeholder="https://..." class="input-field" />
+              </div>
+              
+              <button type="submit" class="btn-secondary w-full py-2">Save RPC Settings</button>
+            </form>
+            <div id="rpc-settings-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+          </section>
+
+          <!-- Settings AI -->
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4">AI Agent Config</h2>
+            <form id="ai-agent-form" class="space-y-4">
+              <div>
+                <label class="label-text">Selection Strategy</label>
+                <select name="strategy" id="ai-strategy" class="input-field">
+                  <option value="smart">Smart (Multi-factor)</option>
+                  <option value="lowest_price">Lowest Price</option>
+                  <option value="closest">Closest</option>
+                  <option value="fastest">Fastest</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="label-text">LLM Provider</label>
+                <select name="llmProvider" id="llm-provider" class="input-field">
+                  <option value="">None</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="custom">Custom API</option>
+                </select>
+              </div>
+              
+              <div id="llm-config" class="llm-config hidden space-y-3">
+                <div>
+                  <label class="label-text">API Key</label>
+                  <input name="llmApiKey" type="password" placeholder="Enter API key" class="input-field" />
+                </div>
+                <div>
+                  <label class="label-text">Model</label>
+                  <input name="llmModel" type="text" placeholder="gpt-4, claude-3, etc." class="input-field" />
+                </div>
+              </div>
+              
+              <button type="submit" class="btn-secondary w-full py-2">Save AI Config</button>
+            </form>
+            <div id="ai-agent-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+          </section>
+        </div>
+      </div>
     </main>
 
+    <!-- Dependencies -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    
+    <!-- Inline script to handle the dashboard specifics before loading app.js -->
+    <script>
+      async function copyTextToClipboard(text) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch (_) {
+          /* fall through */
+        }
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          ta.style.top = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          return ok;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      // Load enrollment secret for QR
+      document.addEventListener('DOMContentLoaded', async () => {
+        try {
+          // Fetch settings/registration info which contains the secret
+          const res = await fetch('/api/admin/services-registration', { credentials: 'include' });
+          if (!res.ok) throw new Error('Could not fetch registration settings');
+          const data = await res.json();
+          
+          // Effective secret string (admin-only); FromEnv/FromFile are booleans, not the value.
+          const secret =
+            typeof data.fleetEnrollmentSecret === 'string' && data.fleetEnrollmentSecret.trim() !== ''
+              ? data.fleetEnrollmentSecret.trim()
+              : null;
+
+          const displayEl = document.getElementById('enrollment-secret-display');
+          const qrContainer = document.getElementById('qrcode-container');
+          if (!displayEl || !qrContainer) return;
+
+          const sourceHint = [];
+          if (data.fleetEnrollmentSecretFromEnv) sourceHint.push('environment');
+          if (data.fleetEnrollmentSecretFromFile) sourceHint.push('services-registration file');
+
+          if (!secret) {
+            displayEl.value =
+              'Not set — add ROBOT_FLEET_ENROLLMENT_SECRET or save in Services registration';
+            displayEl.classList.add('text-red-400');
+            qrContainer.innerHTML =
+              '<div class="w-40 h-40 bg-slate-100 flex flex-col items-center justify-center text-red-500 text-xs text-center px-3 gap-1"><span>Not configured</span><span class="text-slate-500 font-normal">Set env or /ui/services-registration</span></div>';
+          } else {
+            const masked =
+              secret.length <= 8
+                ? '••••••••'
+                : secret.substring(0, 4) + '••••••••' + secret.substring(secret.length - 4);
+            displayEl.value = masked + (sourceHint.length ? ' (' + sourceHint.join(' + ') + ')' : '');
+            
+            // Store full secret in dataset for copying
+            displayEl.dataset.fullSecret = secret;
+            
+            // Generate QR Code
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+              text: secret,
+              width: 160,
+              height: 160,
+              colorDark : "#000000",
+              colorLight : "#ffffff",
+              correctLevel : QRCode.CorrectLevel.M
+            });
+            
+            const copyBtn = document.getElementById('copy-secret-btn');
+            copyBtn.addEventListener('click', async () => {
+              const toCopy = displayEl.dataset.fullSecret || secret;
+              const ok = await copyTextToClipboard(toCopy);
+              const origHtml = copyBtn.innerHTML;
+              if (ok) {
+                copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+                setTimeout(() => { copyBtn.innerHTML = origHtml; }, 2000);
+              } else {
+                window.alert(
+                  'Could not copy (browser may block clipboard on HTTP). Use the QR code, or copy from Services registration / your .env.',
+                );
+              }
+            });
+          }
+          
+          // Populate additional stats
+          fetch('/api/admin/teleoperators', { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+              if(data && data.teleoperators) {
+                document.getElementById('stat-operators').textContent = data.teleoperators.length;
+              }
+            }).catch(e => console.error(e));
+            
+        } catch (err) {
+          console.error('Failed to load dashboard data:', err);
+          document.getElementById('enrollment-secret-display').value = 'Error loading';
+        }
+      });
+    </script>
     <script src="/ui/app.js"></script>
+    <style>
+      /* Temporary overrides for JS-generated elements inside app.js */
+      .robots-list .robot-item {
+        @apply bg-slate-900 border border-slate-700/50 rounded-lg p-3 mb-2 flex justify-between items-center;
+      }
+      .robot-item-info h3 {
+        @apply text-sm font-medium text-slate-200 m-0;
+      }
+      .robot-item-info p {
+        @apply text-xs text-slate-400 m-0;
+      }
+      .robot-item-status {
+        @apply flex items-center gap-1.5 text-xs font-medium;
+      }
+      .robot-item-status.online {
+        @apply text-green-400;
+      }
+      
+      .available-actions .action-group {
+        @apply mb-3;
+      }
+      .action-group-title {
+        @apply text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-800 pb-1;
+      }
+      .available-actions .action-item {
+        @apply bg-slate-800 border border-slate-700 rounded-md p-2 mb-1.5 flex justify-between items-center;
+      }
+      .action-name {
+        @apply text-sm text-slate-300;
+      }
+      .action-cost {
+        @apply text-xs text-solana font-mono;
+      }
+      
+      /* Map styling tweaks */
+      .leaflet-container {
+        @apply bg-slate-800;
+      }
+      .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+        @apply bg-slate-900 text-slate-200 border border-slate-700;
+      }
+      .leaflet-popup-content h3 {
+        @apply text-indigo-400 font-semibold mb-1;
+      }
+      .leaflet-popup-content p {
+        @apply text-slate-400 m-0 text-xs;
+      }
+      
+      /* Messages */
+      .message {
+        @apply hidden mt-3 p-3 rounded-md text-sm text-center;
+      }
+      .message.success {
+        @apply block bg-green-500/10 text-green-400 border border-green-500/20;
+      }
+      .message.error {
+        @apply block bg-red-500/10 text-red-400 border border-red-500/20;
+      }
+      
+      /* Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-slate-900/50 rounded-full;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-slate-700 rounded-full;
+      }
+    </style>
   </body>
 </html>
-

@@ -11,6 +11,11 @@ test('OpenAPI: teleop help, session-grant, peaq claim documented', () => {
   assert.ok(paths['/api/robots/{robotId}/teleop/help'], 'expected POST teleop/help');
   assert.ok(paths['/api/robots/{robotId}/teleop/session-grant'], 'expected GET session-grant');
   assert.ok(paths['/api/robots/{robotId}/peaq/claim'], 'expected GET peaq/claim');
+  assert.ok(
+    paths['/api/teleoperator/sessions/{sessionId}/decline-before-connect'],
+    'expected POST teleoperator decline-before-connect',
+  );
+  assert.ok(paths['/api/teleoperator/sessions/{sessionId}/end'], 'expected POST teleoperator session end');
 });
 
 test('OpenAPI: sprint v1 receipts/incidents and per-robot KYR stats not in this service', () => {

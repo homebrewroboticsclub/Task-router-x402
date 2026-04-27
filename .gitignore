@@ -4,6 +4,7 @@ node_modules/
 .env
 .env.*
 config/client-settings.json
+config/services-registration.json
 
 # Archives and project tree dumps (do not commit to public repos)
 *.zip
@@ -26,9 +27,6 @@ coverage/
 
 # Local static copy / drafts (do not duplicate public/)
 private/
-
-# Maintainer-only automation notes (not shipped to public fork / PR branch)
-AGENTS.md
 
 # OS
 .DS_Store

@@ -50,6 +50,26 @@ async function ensureTeleopHelpSchema(pool) {
     ALTER TABLE help_requests
     ADD COLUMN IF NOT EXISTS teleop_grant_signature TEXT;
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS help_request_operator_exclusions (
+      help_request_id UUID NOT NULL REFERENCES help_requests(id) ON DELETE CASCADE,
+      teleoperator_id UUID NOT NULL REFERENCES teleoperators(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (help_request_id, teleoperator_id)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS help_request_operator_exclusions_operator_idx
+    ON help_request_operator_exclusions (teleoperator_id);
+  `);
+  await pool.query(`
+    ALTER TABLE teleop_sessions
+    ADD COLUMN IF NOT EXISTS robot_proxy_connected_at TIMESTAMPTZ;
+  `);
+  await pool.query(`
+    ALTER TABLE teleop_sessions
+    ADD COLUMN IF NOT EXISTS operator_end_reason TEXT;
+  `);
 }
 
 module.exports = { ensureTeleopHelpSchema };

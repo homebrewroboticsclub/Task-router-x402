@@ -146,9 +146,9 @@ run('robot registry PostgreSQL', () => {
     const cols = await pool.query(
       `SELECT column_name FROM information_schema.columns
        WHERE table_schema = 'public' AND table_name = 'robots'
-       AND column_name IN ('enrollment_key', 'operator_registry_url', 'dataset_http_host', 'dataset_http_port')`,
+       AND column_name IN ('enrollment_key', 'operator_registry_url', 'dataset_http_host', 'dataset_http_port', 'data_node_sync_override')`,
     );
-    assert.equal(cols.rows.length, 4);
+    assert.equal(cols.rows.length, 5);
     await ensureRobotSchema(pool);
     await ensureTeleoperatorRobotGrantsSchema(pool);
     await pool.query('DELETE FROM robots');

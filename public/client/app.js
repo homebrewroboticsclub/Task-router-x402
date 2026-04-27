@@ -1,5 +1,12 @@
 // Wallet integration uses global window.solana
 const API_BASE = '/api/client';
+
+/** Escape for use inside double-quoted HTML attributes. */
+function escapeAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;');
+}
 let currentRpcUrl = 'https://solana-rpc.publicnode.com';
 
 // Solana Web3.js is loaded via script tag in HTML
@@ -118,11 +125,29 @@ function setMode(mode) {
 }
 
 function loadMode() {
+  clearClientDemoSelection();
   if (currentMode === 'direct') {
     loadRobots();
   } else {
     loadCommands();
   }
+}
+
+function clearClientDemoSelection() {
+  document.querySelectorAll('.client-action-tile--selected').forEach((el) => {
+    el.classList.remove('client-action-tile--selected');
+  });
+  document.querySelectorAll('.client-command-card--selected').forEach((el) => {
+    el.classList.remove('client-command-card--selected');
+  });
+}
+
+function clientRobotStatusModifier(status) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'ready') return 'client-robot-status--ready';
+  if (s === 'busy') return 'client-robot-status--busy';
+  if (s === 'error' || s === 'unhealthy') return 'client-robot-status--error';
+  return 'client-robot-status--default';
 }
 
 async function loadRobots() {
@@ -144,7 +169,9 @@ async function loadRobots() {
     data.robots.forEach(robot => {
       robot.availableMethods.forEach(method => {
         const methodKey = getMethodKey(method);
-        const methodEl = document.querySelector(`[data-robot-id="${robot.id}"][data-method="${methodKey}"]`);
+        const methodEl = document.querySelector(
+          `[data-robot-id="${CSS.escape(robot.id)}"][data-method="${CSS.escape(methodKey)}"]`,
+        );
         if (methodEl) {
           methodEl.addEventListener('click', () => selectAction(robot, method));
         }
@@ -173,7 +200,7 @@ async function loadCommands() {
     
     // Add event listeners
     data.commands.forEach(cmd => {
-      const cmdEl = document.querySelector(`[data-command="${cmd.name}"]`);
+      const cmdEl = document.querySelector(`[data-command="${CSS.escape(cmd.name)}"]`);
       if (cmdEl) {
         cmdEl.addEventListener('click', () => selectCommand(cmd));
       }
@@ -186,44 +213,55 @@ async function loadCommands() {
 
 function renderRobot(robot) {
   const methods = robot.availableMethods || [];
-  const methodsHtml = methods.map(method => {
+  const statusLabel = String(robot.status || 'unknown').toUpperCase();
+  const statusClass = clientRobotStatusModifier(robot.status);
+
+  const methodsHtml = methods.map((method) => {
     const methodKey = getMethodKey(method);
-    const methodName = typeof method === 'string' ? method : (method.path || method.description || 'unknown');
-    const methodPrice = typeof method === 'object' && method.pricing 
-      ? `${method.pricing.amount} ${method.pricing.assetSymbol || 'SOL'}` 
+    const pathLabel = typeof method === 'string' ? method : (method.path || method.description || 'unknown');
+    const methodPrice = typeof method === 'object' && method.pricing
+      ? `${method.pricing.amount} ${method.pricing.assetSymbol || 'SOL'}`
       : 'Free';
     const methodDesc = typeof method === 'object' ? (method.description || '') : '';
+    const priceClass =
+      methodPrice === 'Free'
+        ? 'client-action-price client-action-price--muted'
+        : 'client-action-price';
 
     return `
-      <div class="method-item" data-robot-id="${robot.id}" data-method="${methodKey}">
-        <div class="method-item-header">
-          <span class="method-name">${methodName}</span>
-          <span class="method-price">${methodPrice}</span>
+      <div class="client-action-tile" data-robot-id="${escapeAttr(robot.id)}" data-method="${escapeAttr(methodKey)}">
+        <div class="client-action-row">
+          <span class="client-action-path">${pathLabel}</span>
+          <span class="${priceClass}">${methodPrice}</span>
         </div>
-        ${methodDesc ? `<p class="method-description">${methodDesc}</p>` : ''}
+        ${methodDesc ? `<p class="client-action-desc">${methodDesc}</p>` : ''}
       </div>
     `;
   }).join('');
 
   return `
-    <div class="robot-card">
-      <div class="robot-header">
-        <span class="robot-name">${robot.name}</span>
-        <span class="robot-status ${robot.status}">${robot.status.toUpperCase()}</span>
+    <article class="client-robot-card">
+      <div class="client-robot-header">
+        <span class="client-robot-name">${robot.name}</span>
+        <span class="client-robot-status ${statusClass}">${statusLabel}</span>
       </div>
-      <div class="robot-methods">${methodsHtml || '<p>No methods available</p>'}</div>
-    </div>
+      <div class="client-robot-methods">${methodsHtml || '<p class="text-sm text-slate-500 m-0">No methods available</p>'}</div>
+    </article>
   `;
 }
 
 function renderCommand(cmd) {
   const price = cmd.pricing ? `${cmd.pricing.amount} ${cmd.pricing.assetSymbol || 'SOL'}` : 'Price TBD';
-  
+  const priceClass =
+    price === 'Price TBD' ? 'client-action-price client-action-price--muted' : 'client-action-price';
+
   return `
-    <div class="command-card" data-command="${cmd.name}">
-      <div class="command-name">${cmd.name}</div>
-      <p class="command-description">${cmd.description || ''}</p>
-      <p class="command-description"><strong>Price:</strong> ${price}</p>
+    <div class="client-command-card" data-command="${escapeAttr(cmd.name)}">
+      <div class="client-action-row">
+        <span class="client-action-path">${cmd.name}</span>
+        <span class="${priceClass}">${price}</span>
+      </div>
+      ${cmd.description ? `<p class="client-action-desc">${cmd.description}</p>` : ''}
     </div>
   `;
 }
@@ -234,6 +272,15 @@ function getMethodKey(method) {
 }
 
 function selectAction(robot, method) {
+  clearClientDemoSelection();
+  const methodKey = getMethodKey(method);
+  const tile = document.querySelector(
+    `[data-robot-id="${CSS.escape(robot.id)}"][data-method="${CSS.escape(methodKey)}"]`,
+  );
+  if (tile) {
+    tile.classList.add('client-action-tile--selected');
+  }
+
   currentAction = {
     mode: 'direct',
     robot,
@@ -243,6 +290,12 @@ function selectAction(robot, method) {
 }
 
 function selectCommand(cmd) {
+  clearClientDemoSelection();
+  const tile = document.querySelector(`[data-command="${CSS.escape(cmd.name)}"]`);
+  if (tile) {
+    tile.classList.add('client-command-card--selected');
+  }
+
   currentAction = {
     mode: 'raid',
     command: cmd,

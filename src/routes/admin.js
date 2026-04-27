@@ -12,7 +12,14 @@ const {
 } = require('../middleware/adminAuth');
 const { createTeleoperatorRepository } = require('../services/teleoperatorRepository');
 const { createTeleoperatorRobotGrantRepository } = require('../services/teleoperatorRobotGrantRepository');
-const { pushOperatorAllowlistToRobot } = require('../services/robotOperatorSync');
+const { pushRobotProvisionToRobot } = require('../services/robotOperatorSync');
+const {
+  buildDataNodeSyncFromRobot,
+  hasDataNodeSyncPayload,
+} = require('../services/dataNodeSyncProvision');
+const { redactRobotForAdminApi } = require('../services/robotRepository');
+const servicesRegistrationStore = require('../services/servicesRegistrationStore');
+const { registerAdminServicesRegistrationRoutes } = require('./adminServicesRegistration');
 
 const CONFIG_FILE = path.join(process.cwd(), 'config', 'ai-agent.json');
 
@@ -130,6 +137,8 @@ const createAdminRouter = ({
 
   router.use(createAdminApiAuthMiddleware(adminConfig));
 
+  registerAdminServicesRegistrationRoutes(router, { config, registry });
+
   const grantRepository = pool ? createTeleoperatorRobotGrantRepository(pool) : null;
   const teleoperatorRepository =
     pool && config
@@ -149,7 +158,7 @@ const createAdminRouter = ({
    */
   if (registry) {
     router.get('/robots', (req, res) => {
-      res.json({ robots: registry.list() });
+      res.json({ robots: registry.list().map((r) => redactRobotForAdminApi(r)) });
     });
 
     /**
@@ -177,6 +186,7 @@ const createAdminRouter = ({
           operatorRegistryUrl,
           datasetHttpHost,
           datasetHttpPort,
+          dataNodeSyncOverride,
         } = req.body || {};
         if (!host || !port) {
           return res.status(400).json({ error: 'Host and port are required' });
@@ -193,8 +203,9 @@ const createAdminRouter = ({
           operatorRegistryUrl,
           datasetHttpHost,
           datasetHttpPort,
+          dataNodeSyncOverride,
         });
-        return res.status(201).json(robot);
+        return res.status(201).json(redactRobotForAdminApi(robot));
       } catch (error) {
         return next(error);
       }
@@ -203,7 +214,7 @@ const createAdminRouter = ({
     router.put('/robots/:robotId', async (req, res, next) => {
       try {
         const robot = await registry.updateRobot(req.params.robotId, req.body || {});
-        return res.json(robot);
+        return res.json(redactRobotForAdminApi(robot));
       } catch (error) {
         if (error.message === 'Robot not found') {
           return res.status(404).json({ error: 'Robot not found' });
@@ -227,7 +238,7 @@ const createAdminRouter = ({
     router.post('/robots/:robotId/refresh', async (req, res, next) => {
       try {
         const robot = await registry.refreshRobot(req.params.robotId);
-        return res.json(robot);
+        return res.json(redactRobotForAdminApi(robot));
       } catch (error) {
         if (error.message === 'Robot not found') {
           return res.status(404).json({ error: 'Robot not found' });
@@ -242,26 +253,70 @@ const createAdminRouter = ({
      *   post:
      *     tags:
      *       - Admin
-     *     summary: Push allowed teleoperator IDs to robot (optional HTTP API)
+     *     summary: Push allowlist and/or dataNodeSync to robot operatorRegistryUrl
+     *     description: >
+     *       JSON body optional. Defaults pushAllowlist=true, pushDataNodeSync=true.
+     *       At least one must be true. pushDataNodeSync requires fleet or per-robot DATA_NODE sync config.
      *     security:
      *       - AdminSessionCookie: []
      *       - AdminBasic: []
      */
     router.post('/robots/:robotId/sync-operator-allowlist', async (req, res) => {
-      if (!grantRepository) {
+      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+      const pushAllowlist = body.pushAllowlist !== false;
+      const pushDataNodeSync = body.pushDataNodeSync !== false;
+
+      if (!pushAllowlist && !pushDataNodeSync) {
+        return res.status(400).json({
+          error: 'At least one of pushAllowlist or pushDataNodeSync must be true',
+        });
+      }
+      if (pushAllowlist && !grantRepository) {
         return res.status(503).json({ error: 'Database not configured' });
       }
+
       const robot = registry.getById(req.params.robotId);
       if (!robot) {
         return res.status(404).json({ error: 'Robot not found' });
       }
-      const ids = await grantRepository.listActiveTeleoperatorIdsForRobot(req.params.robotId);
-      const result = await pushOperatorAllowlistToRobot({
+
+      if (pushDataNodeSync && !hasDataNodeSyncPayload(robot, config)) {
+        return res.status(400).json({
+          error:
+            'dataNodeSync is not configured for this robot (set DATA_NODE_SYNC_* env, Services registration UI, and/or dataNodeSyncOverride)',
+        });
+      }
+
+      let allowedTeleoperatorIds = [];
+      if (pushAllowlist) {
+        allowedTeleoperatorIds = await grantRepository.listActiveTeleoperatorIdsForRobot(
+          req.params.robotId,
+        );
+      }
+
+      const dataNodeSync = pushDataNodeSync ? buildDataNodeSyncFromRobot(robot, config) : null;
+      if (pushDataNodeSync && dataNodeSync == null) {
+        return res.status(400).json({
+          error:
+            'dataNodeSync is not configured for this robot (set DATA_NODE_SYNC_* env, Services registration UI, and/or dataNodeSyncOverride)',
+        });
+      }
+
+      const result = await pushRobotProvisionToRobot({
         robot,
-        raidToRobotSecret: config?.robots?.raidToRobotSecret ?? null,
-        allowedTeleoperatorIds: ids,
+        raidToRobotSecret: servicesRegistrationStore.getEffectiveRaidToRobotSecret(config),
+        allowedTeleoperatorIds,
+        dataNodeSync,
+        pushAllowlist,
+        pushDataNodeSync,
       });
-      return res.json({ ok: true, robotId: robot.id, ...result });
+      return res.json({
+        ok: true,
+        robotId: robot.id,
+        pushAllowlist,
+        pushDataNodeSync,
+        ...result,
+      });
     });
   }
 

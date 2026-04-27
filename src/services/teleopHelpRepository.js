@@ -49,6 +49,10 @@ async function listOpenHelpRequestsForTeleoperator(pool, teleoperatorId) {
     `SELECT hr.id, hr.robot_id, hr.status, hr.payload, hr.created_at, hr.claimed_by, hr.claimed_at
      FROM help_requests hr
      WHERE hr.status = 'open'
+       AND NOT EXISTS (
+         SELECT 1 FROM help_request_operator_exclusions ex
+         WHERE ex.help_request_id = hr.id AND ex.teleoperator_id = $1::uuid
+       )
        AND (
          NOT EXISTS (
            SELECT 1 FROM teleoperator_robot_grants g
@@ -123,12 +127,153 @@ async function acceptHelpRequest(pool, { requestId, teleoperatorId }) {
  */
 async function getActiveSessionForOperator(pool, { sessionId, teleoperatorId }) {
   const r = await pool.query(
-    `SELECT ts.id, ts.help_request_id, ts.teleoperator_id, ts.robot_id, ts.created_at, ts.ended_at
+    `SELECT ts.id, ts.help_request_id, ts.teleoperator_id, ts.robot_id, ts.created_at, ts.ended_at,
+            ts.robot_proxy_connected_at, ts.operator_end_reason
      FROM teleop_sessions ts
      WHERE ts.id = $1 AND ts.teleoperator_id = $2 AND ts.ended_at IS NULL`,
     [sessionId, teleoperatorId],
   );
   return r.rows[0] || null;
+}
+
+/**
+ * First moment the operator proxy WebSocket passed RAID checks and will connect to rosbridge.
+ * @param {import('pg').Pool} pool
+ * @param {string} sessionId
+ */
+async function markRobotProxyConnectedAt(pool, sessionId) {
+  const r = await pool.query(
+    `UPDATE teleop_sessions
+     SET robot_proxy_connected_at = NOW()
+     WHERE id = $1::uuid AND ended_at IS NULL AND robot_proxy_connected_at IS NULL
+     RETURNING id`,
+    [sessionId],
+  );
+  return r.rowCount > 0;
+}
+
+/**
+ * Operator declined after accept, before robot proxy WebSocket: reopen help request, exclude operator.
+ * @param {import('pg').Pool} pool
+ * @param {{ sessionId: string, teleoperatorId: string, operatorEndReason: string }} input
+ * @returns {Promise<{ helpRequest: object } | null>}
+ */
+async function declineTeleopSessionBeforeProxy(pool, { sessionId, teleoperatorId, operatorEndReason }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const sel = await client.query(
+      `SELECT ts.id AS session_id, ts.help_request_id, ts.robot_proxy_connected_at, ts.ended_at,
+              hr.id AS hr_id, hr.robot_id, hr.status, hr.payload, hr.created_at, hr.claimed_by
+       FROM teleop_sessions ts
+       INNER JOIN help_requests hr ON hr.id = ts.help_request_id
+       WHERE ts.id = $1::uuid AND ts.teleoperator_id = $2::uuid
+       FOR UPDATE OF ts, hr`,
+      [sessionId, teleoperatorId],
+    );
+    const row = sel.rows[0];
+    if (
+      !row
+      || row.ended_at != null
+      || row.robot_proxy_connected_at != null
+      || row.status !== 'claimed'
+      || String(row.claimed_by) !== String(teleoperatorId)
+    ) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    await client.query(
+      `UPDATE teleop_sessions
+       SET ended_at = NOW(), operator_end_reason = $2
+       WHERE id = $1::uuid AND ended_at IS NULL`,
+      [sessionId, operatorEndReason],
+    );
+    const upHr = await client.query(
+      `UPDATE help_requests
+       SET status = 'open', claimed_by = NULL, claimed_at = NULL,
+           teleop_grant_payload = NULL, teleop_grant_signature = NULL
+       WHERE id = $1::uuid AND status = 'claimed'
+       RETURNING id, robot_id, status, payload, created_at, claimed_by, claimed_at`,
+      [row.help_request_id],
+    );
+    if (upHr.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    await client.query(
+      `INSERT INTO help_request_operator_exclusions (help_request_id, teleoperator_id)
+       VALUES ($1::uuid, $2::uuid)
+       ON CONFLICT (help_request_id, teleoperator_id) DO NOTHING`,
+      [row.help_request_id, teleoperatorId],
+    );
+    await client.query('COMMIT');
+    return { helpRequest: upHr.rows[0] };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * End session from operator HTTP with a stable reason; close help request. Idempotent if already ended.
+ * @param {import('pg').Pool} pool
+ * @param {{ sessionId: string, teleoperatorId: string, operatorEndReason: string }} input
+ * @returns {Promise<{ ok: boolean, idempotent?: boolean, helpRequestId?: string | null, operatorEndReason?: string | null, code?: string }>}
+ */
+async function endTeleopSessionWithOperatorReason(pool, { sessionId, teleoperatorId, operatorEndReason }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const sel = await client.query(
+      `SELECT ts.id, ts.help_request_id, ts.ended_at, ts.operator_end_reason, ts.robot_proxy_connected_at
+       FROM teleop_sessions ts
+       WHERE ts.id = $1::uuid AND ts.teleoperator_id = $2::uuid
+       FOR UPDATE OF ts`,
+      [sessionId, teleoperatorId],
+    );
+    const row = sel.rows[0];
+    if (!row) {
+      await client.query('ROLLBACK');
+      return { ok: false, code: 'not_found' };
+    }
+    if (row.ended_at != null) {
+      await client.query('COMMIT');
+      return {
+        ok: true,
+        idempotent: true,
+        helpRequestId: row.help_request_id,
+        operatorEndReason: row.operator_end_reason,
+      };
+    }
+    if (row.robot_proxy_connected_at == null) {
+      await client.query('ROLLBACK');
+      return { ok: false, code: 'proxy_not_connected' };
+    }
+    await client.query(
+      `UPDATE teleop_sessions
+       SET ended_at = NOW(), operator_end_reason = $2
+       WHERE id = $1::uuid`,
+      [sessionId, operatorEndReason],
+    );
+    await client.query(
+      `UPDATE help_requests SET status = 'closed' WHERE id = $1 AND status IN ('claimed', 'open')`,
+      [row.help_request_id],
+    );
+    await client.query('COMMIT');
+    return {
+      ok: true,
+      idempotent: false,
+      helpRequestId: row.help_request_id,
+      operatorEndReason,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -227,6 +372,9 @@ module.exports = {
   getOpenHelpRequestMeta,
   acceptHelpRequest,
   getActiveSessionForOperator,
+  markRobotProxyConnectedAt,
+  declineTeleopSessionBeforeProxy,
+  endTeleopSessionWithOperatorReason,
   endTeleopSession,
   updateHelpRequestPeaqClaim,
   getHelpRequestForRobotClaim,

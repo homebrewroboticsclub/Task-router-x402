@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
@@ -38,7 +39,9 @@ const { createTeleopOperatorHub } = require('./services/teleopOperatorHub');
 const { attachTeleopWebSockets } = require('./ws/teleopServer');
 const { swaggerSpec, swaggerUi } = require('./docs/swagger');
 const settingsStore = require('./services/settingsStore');
+const servicesRegistrationStore = require('./services/servicesRegistrationStore');
 const { startMdnsAdvertisement } = require('./services/mdnsAdvertisement');
+const { registerPublicTailwindCss, registerPublicBrandAssets } = require('./publicStaticRoutes');
 
 const bootstrap = async () => {
   const config = loadConfig(process.argv.slice(2));
@@ -85,6 +88,7 @@ const bootstrap = async () => {
   }
 
   settingsStore.init(config);
+  servicesRegistrationStore.init(config);
 
   const x402Service = new X402Service(config.x402);
   const healthMonitor = createHealthMonitor({ config, x402Service });
@@ -142,13 +146,17 @@ const bootstrap = async () => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  const publicRoot = path.join(__dirname, '..', 'public');
+  registerPublicTailwindCss(app, publicRoot, logger);
+  registerPublicBrandAssets(app, publicRoot, logger);
+
   // Admin panel: cookie session (login page) + optional Basic on /api/admin only
   // Do not register app.get('/ui') → redirect to '/ui/': in Express 5 that route also matches
   // GET /ui/ and causes an infinite 302 loop. Trailing slash is handled by express.static (301 /ui → /ui/).
   app.use(
     '/ui',
     createAdminUiGuardMiddleware(config.admin),
-    express.static(path.join(__dirname, '..', 'public')),
+    express.static(publicRoot),
   );
 
   // Public client UI
@@ -159,7 +167,11 @@ const bootstrap = async () => {
 
   if (pool) {
     const teleoperatorPublicRoot = path.join(__dirname, '..', 'public', 'teleoperator');
-    const teleoperatorCabinetFile = path.join(__dirname, '..', 'private', 'teleoperator', 'cabinet.html');
+    const teleoperatorCabinetPrivate = path.join(__dirname, '..', 'private', 'teleoperator', 'cabinet.html');
+    const teleoperatorCabinetPublic = path.join(teleoperatorPublicRoot, 'cabinet.html');
+    const teleoperatorCabinetFile = fs.existsSync(teleoperatorCabinetPrivate)
+      ? teleoperatorCabinetPrivate
+      : teleoperatorCabinetPublic;
 
     app.get(
       '/teleoperator/cabinet',
@@ -197,6 +209,7 @@ const bootstrap = async () => {
         peaqClaimService,
         peaqClaimSyncTimeoutMs: config.peaq.claimSyncTimeoutMs,
         teleopSessionGrantService,
+        config,
       }),
     );
   }

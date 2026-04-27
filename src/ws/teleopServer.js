@@ -6,7 +6,12 @@ const { verifyTeleopToken } = require('../middleware/teleopSession');
 const {
   getActiveSessionForOperator,
   endTeleopSession,
+  markRobotProxyConnectedAt,
 } = require('../services/teleopHelpRepository');
+const {
+  registerProxyOperatorSocket,
+  unregisterProxyOperatorSocket,
+} = require('./teleopProxyWsRegistry');
 
 /**
  * Client WS URL/options toward rosbridge on the robot: teleoperator identity (JWT sub + login).
@@ -242,6 +247,7 @@ function handleProxySession(ws, ctx) {
   let reconnectTimer = null;
 
   const physicalCleanup = () => {
+    unregisterProxyOperatorSocket(sessionId);
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -339,6 +345,13 @@ function handleProxySession(ws, ctx) {
     });
     rosUrl = built.url;
     wsOptions = built.wsOptions;
+
+    try {
+      await markRobotProxyConnectedAt(pool, sessionId);
+    } catch (markErr) {
+      logger.warn('markRobotProxyConnectedAt failed', { sessionId, message: markErr.message });
+    }
+    registerProxyOperatorSocket(sessionId, ws);
 
     /** Remaining rosbridge reconnect waves after a drop (reset to dropWaves after a successful open). */
     let reconnectAttemptsLeft = 0;
@@ -454,6 +467,7 @@ function handleProxySession(ws, ctx) {
       robotWs = await establishRobotLink();
     } catch (error) {
       logger.warn('rosbridge initial connect failed', { sessionId, message: error.message });
+      unregisterProxyOperatorSocket(sessionId);
       reservedProxySessions.delete(sessionId);
       cleaned = true;
       if (ws.readyState === WebSocket.OPEN) {
@@ -486,11 +500,13 @@ function handleProxySession(ws, ctx) {
     });
 
     ws.on('close', () => {
-      finalizeSession({ immediateEndDb: !bridgeEverOpened });
+      const immediate = Boolean(ws.skipTeleopEndGrace) || !bridgeEverOpened;
+      finalizeSession({ immediateEndDb: immediate });
     });
 
     ws.on('error', () => {
-      finalizeSession({ immediateEndDb: !bridgeEverOpened });
+      const immediate = Boolean(ws.skipTeleopEndGrace) || !bridgeEverOpened;
+      finalizeSession({ immediateEndDb: immediate });
     });
   })().catch((error) => {
     logger.error('proxy session setup failed', { error: error.message, sessionId });

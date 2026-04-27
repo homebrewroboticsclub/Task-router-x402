@@ -1,10 +1,10 @@
 # Contributing to Task-router-x402
 
-Public contributor expectations. Keep **README.md** and **config/env.example** accurate when you change behavior, routes, or environment variables.
+Public contributor expectations. Keep **README.md**, **AGENTS.md** (documentation map for agents), and **config/env.example** accurate when you change behavior, routes, or environment variables.
 
 ## Language
 
-- **Committed text must be English:** source, comments, commit messages, operator-facing logs, CLI help, `config/env.example`, **README.md**, **docs/**, OpenAPI/JSDoc, and UI strings in **public/**.
+- **Committed text must be English:** source, comments, commit messages, operator-facing logs, CLI help, `config/env.example`, **README.md**, **AGENTS.md**, **docs/**, OpenAPI/JSDoc, and UI strings in **public/**.
 - **`npm test`** runs `test/no-cyrillic-in-repo.test.js` — do not add Cyrillic (or other non-ASCII script leakage) to tracked sources; fix at the source instead of excluding paths without maintainer approval.
 
 ## API contract
@@ -23,4 +23,4 @@ Public contributor expectations. Keep **README.md** and **config/env.example** a
 - **`.env`**, real keys, repository archives (`*.zip`, etc.), or **`private/`** contents.
 - Do not run destructive SQL (`DROP`, `TRUNCATE` on production tables) or `docker compose down -v` on shared data without explicit operator approval.
 
-Maintainers may keep a local **`AGENTS.md`** (gitignored) for team- or tool-specific automation rules; it is **not** part of the public tree.
+The repo root **`AGENTS.md`** is the shared guide for AI coding agents (update it when documentation structure changes). Teams may add **other** gitignored local rule files if needed.

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Services Registration — Homebrew Robotics · Task Router</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-screen flex flex-col bg-slate-900">
+    <!-- Top Navigation Bar -->
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+          <a href="/client" class="flex items-center gap-2 hover:opacity-90 transition-opacity no-underline">
+            <img src="/brand/hbr-mark.png" alt="Homebrew Robotics" width="32" height="32" class="h-8 w-8 object-contain shrink-0" />
+            <div class="flex flex-col leading-tight text-left">
+              <span class="text-lg font-bold text-white tracking-tight">Homebrew Robotics</span>
+              <span class="text-xs text-slate-400">Task Router — Services</span>
+            </div>
+          </a>
+          <div class="flex gap-4 items-center">
+            <a href="/ui/" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">Dashboard</a>
+            <a href="/ui/teleop-access.html" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">Teleop Access</a>
+            <button type="button" id="admin-logout" class="btn-secondary text-xs px-3 py-1.5 h-8 ml-2">Log Out</button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow">
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white">Services Configuration</h1>
+        <p class="text-slate-400 text-sm mt-1">Configure DATA_NODE synchronization and robot communication secrets</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Left Column: DATA_NODE Settings -->
+        <div class="space-y-6">
+          
+          <section class="panel border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-slate-700/50">
+              <h2 class="text-lg font-semibold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0zM2 13a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 1a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd" />
+                </svg>
+                DATA_NODE Configuration
+              </h2>
+              <span id="status-line" class="text-xs font-medium text-slate-400">Loading...</span>
+            </div>
+
+            <form id="fleet-form" class="space-y-4">
+              <p class="text-sm text-slate-400 mb-4">
+                Global settings pushed to robots for automated data syncing to your DATA_NODE.
+              </p>
+
+              <div>
+                <label class="label-text">DATA_NODE Base URL</label>
+                <input name="baseUrl" id="dn-base" type="url" placeholder="https://data-node.example.com" class="input-field" autocomplete="off" />
+              </div>
+              
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="label-text">Auth Header Name</label>
+                  <input name="authHeaderName" id="dn-auth-name" placeholder="Authorization" class="input-field" autocomplete="off" />
+                </div>
+                <div>
+                  <label class="label-text">Auth Secret Token</label>
+                  <input name="authHeaderValue" id="dn-auth-val" type="password" placeholder="Leave empty to keep saved" class="input-field" autocomplete="off" />
+                </div>
+              </div>
+
+              <!-- Advanced options toggle -->
+              <details class="group bg-slate-900/50 rounded-lg border border-slate-700 mt-4">
+                <summary class="text-sm font-medium text-slate-300 cursor-pointer p-3 list-none flex justify-between items-center">
+                  Advanced Settings
+                  <span class="transition group-open:rotate-180">
+                    <svg fill="none" height="24" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                  </span>
+                </summary>
+                <div class="p-3 pt-0 border-t border-slate-800 space-y-4 text-sm mt-2">
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                    <input type="checkbox" name="enabled" id="dn-enabled" class="rounded border-slate-700 bg-slate-900 text-indigo-500 focus:ring-indigo-600 focus:ring-offset-slate-900" />
+                    <span>Enable Uploader (Robot Default)</span>
+                  </label>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="label-text text-xs">Batch Path</label>
+                      <input name="batchPath" id="dn-path" placeholder="/v1/ingest/robot-events" class="input-field text-xs py-1.5" autocomplete="off" />
+                    </div>
+                    <div>
+                      <label class="label-text text-xs">Interval (sec)</label>
+                      <input name="intervalSec" id="dn-interval" type="number" min="60" max="86400" class="input-field text-xs py-1.5" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <span class="label-text text-xs mb-2">Include Event Types:</span>
+                    <div class="grid grid-cols-2 gap-2 pl-2">
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-400 text-xs hover:text-slate-300">
+                        <input type="checkbox" name="includeDashboardEvents" id="dn-inc-dash" class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                        <span>Dashboard</span>
+                      </label>
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-400 text-xs hover:text-slate-300">
+                        <input type="checkbox" name="includeAuditEvents" id="dn-inc-audit" class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                        <span>Audit</span>
+                      </label>
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-400 text-xs hover:text-slate-300">
+                        <input type="checkbox" name="includeStateUsbSnapshot" id="dn-inc-usb" class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                        <span>State / USB</span>
+                      </label>
+                      <label class="flex items-center gap-2 cursor-pointer text-slate-400 text-xs hover:text-slate-300">
+                        <input type="checkbox" name="includeKyrIncidents" id="dn-inc-kyr" class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                        <span>KYR Incidents</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <button type="submit" class="btn-primary w-full shadow-lg shadow-indigo-600/20 mt-4">Save DATA_NODE Configuration</button>
+            </form>
+            <div id="fleet-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+
+            <!-- Testing Section -->
+            <div class="mt-6 pt-6 border-t border-slate-700/50">
+              <h3 class="text-sm font-semibold text-slate-300 mb-3">Test Connection</h3>
+              <div class="flex gap-2">
+                <button type="button" id="btn-test-dn" class="btn-secondary w-full">Send Test Payload to DATA_NODE</button>
+              </div>
+              <pre id="test-dn-out" class="hidden mt-3 bg-slate-900 border border-slate-700 p-3 rounded-lg text-xs font-mono text-slate-300 overflow-x-auto max-h-40 custom-scrollbar"></pre>
+            </div>
+          </section>
+
+          <!-- Raw View Toggle (Developer) -->
+          <details class="group text-sm">
+            <summary class="cursor-pointer text-slate-500 hover:text-slate-300 select-none">View Raw Effective Config</summary>
+            <pre id="effective-preview" class="mt-2 p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-400 overflow-x-auto max-h-60 custom-scrollbar"></pre>
+          </details>
+
+        </div>
+
+        <!-- Right Column: Other Settings -->
+        <div class="space-y-6">
+          
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-solana" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+              </svg>
+              Global Secrets
+            </h2>
+            <p class="text-sm text-slate-400 mb-4">
+              Two different shared secrets (see below). Environment variables override values stored in <code class="text-slate-500">config/services-registration.json</code>.
+            </p>
+
+            <div class="mb-4 rounded-lg border border-slate-700/60 bg-slate-900/40 p-3 text-xs text-slate-400 space-y-2">
+              <p>
+                <strong class="text-slate-300">Fleet enrollment</strong> — robot → Task Router for
+                <code class="text-slate-500">POST /api/robots/enroll</code> with
+                <code class="text-slate-500">X-Robot-Fleet-Secret</code> or Bearer. Shown as QR on the admin dashboard.
+              </p>
+              <p>
+                <strong class="text-slate-300">RAID → robot</strong> — Task Router → robot
+                <code class="text-slate-500">operatorRegistryUrl</code> (allowlist / optional DATA_NODE sync). Header
+                <code class="text-slate-500">X-Raid-To-Robot-Secret</code>. Not used for enroll.
+              </p>
+            </div>
+
+            <div id="secrets-env-banner" class="hidden mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"></div>
+
+            <form id="secrets-form" class="space-y-4">
+              <div>
+                <label class="label-text flex items-center justify-between">
+                  <span>RAID → Robot Secret</span>
+                  <span class="text-[10px] uppercase tracking-wide bg-slate-800 px-2 py-0.5 rounded text-slate-500">X-Raid-To-Robot-Secret</span>
+                </label>
+                <input name="raidToRobotSecret" id="sec-raid" type="password" class="input-field" placeholder="Leave empty to keep current" autocomplete="off" />
+              </div>
+              
+              <div>
+                <label class="label-text flex items-center justify-between">
+                  <span>Fleet Enrollment Secret</span>
+                  <span class="text-[10px] uppercase tracking-wide bg-slate-800 px-2 py-0.5 rounded text-slate-500">Enroll / dashboard QR</span>
+                </label>
+                <input name="fleetEnrollmentSecret" id="sec-fleet" type="password" class="input-field" placeholder="Leave empty to keep current" autocomplete="off" />
+              </div>
+
+              <button type="submit" class="btn-secondary w-full">Update Secrets</button>
+            </form>
+            <div id="secrets-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+
+            <div class="mt-4 pt-4 border-t border-slate-700/50 space-y-3">
+              <p class="text-xs text-slate-500">
+                Regenerate a random secret and save it to the registration file only. If the same setting exists in <code class="text-slate-400">.env</code>, the server keeps using the env value until you change it there and restart.
+              </p>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <button type="button" id="btn-rotate-fleet" class="btn-secondary text-sm py-2">
+                  Regenerate fleet enrollment secret…
+                </button>
+                <button type="button" id="btn-rotate-raid" class="btn-secondary text-sm py-2">
+                  Regenerate RAID→robot secret…
+                </button>
+              </div>
+              <div id="rotate-once-hint" class="hidden text-xs text-amber-400 font-mono break-all bg-slate-950/80 border border-amber-500/20 rounded-lg p-2"></div>
+            </div>
+          </section>
+
+          <!-- Relay settings (Optional) -->
+          <details class="group bg-slate-800/30 rounded-xl border border-slate-700/50">
+            <summary class="text-sm font-semibold text-slate-300 cursor-pointer p-4 list-none flex justify-between items-center">
+              Optional: Help → DATA_NODE Relay
+              <span class="transition group-open:rotate-180">
+                <svg fill="none" height="20" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="20"><path d="M6 9l6 6 6-6"></path></svg>
+              </span>
+            </summary>
+            
+            <div class="p-4 pt-0 border-t border-slate-700/50">
+              <form id="relay-form" class="space-y-4 mt-4">
+                <label class="flex items-center gap-2 cursor-pointer text-slate-300 text-sm">
+                  <input type="checkbox" name="enabled" id="relay-enabled" class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                  <span>Enable Incident Relay</span>
+                </label>
+                
+                <div>
+                  <label class="label-text text-xs">Webhook URL</label>
+                  <input name="url" id="relay-url" type="url" placeholder="https://…/v1/ingest/raid-help" class="input-field text-sm py-1.5" autocomplete="off" />
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label-text text-xs">Auth Header</label>
+                    <input name="authHeader" id="relay-auth-h" class="input-field text-sm py-1.5" autocomplete="off" />
+                  </div>
+                  <div>
+                    <label class="label-text text-xs">Auth Value</label>
+                    <input name="authValue" id="relay-auth-v" type="password" placeholder="Leave empty to keep" class="input-field text-sm py-1.5" autocomplete="off" />
+                  </div>
+                </div>
+                <button type="submit" class="btn-secondary w-full text-sm py-1.5">Save Relay Settings</button>
+              </form>
+              <div id="relay-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+            </div>
+          </details>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- Hidden element needed by the original script for the test buttons -->
+    <input type="checkbox" id="test-dn-use-saved" checked class="hidden" />
+    <input type="url" id="test-dn-base" class="hidden" />
+    <input type="text" id="test-dn-robot" class="hidden" />
+    <select id="test-robot-sel" class="hidden"></select>
+
+    <script>
+      // The original script logic
+      const api = {
+        async request(path, options = {}) {
+          const response = await fetch(path, {
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+            body: options.body ? JSON.stringify(options.body) : undefined,
+          });
+          if (response.status === 401 && path.startsWith('/api/admin')) {
+            window.location.href = '/ui/login.html?next=' + encodeURIComponent(location.pathname);
+            throw new Error('Session expired');
+          }
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Request failed');
+          }
+          return payload;
+        },
+        get() {
+          return this.request('/api/admin/services-registration');
+        },
+        put(body) {
+          return this.request('/api/admin/services-registration', { method: 'PUT', body });
+        },
+        testDn(body) {
+          return this.request('/api/admin/services-registration/test-data-node', { method: 'POST', body });
+        },
+        testRobot(body) {
+          return this.request('/api/admin/services-registration/test-robot-registry', { method: 'POST', body });
+        },
+        rotateFleetEnrollment() {
+          return this.request('/api/admin/services-registration/rotate-fleet-enrollment-secret', {
+            method: 'POST',
+            body: { confirm: true },
+          });
+        },
+        rotateRaidToRobot() {
+          return this.request('/api/admin/services-registration/rotate-raid-to-robot-secret', {
+            method: 'POST',
+            body: { confirm: true },
+          });
+        },
+        listRobots() {
+          return this.request('/api/admin/robots');
+        },
+      };
+
+      function setMessage(el, text, kind) {
+        el.textContent = text;
+        el.classList.remove('hidden', 'bg-green-500/10', 'text-green-400', 'border-green-500/20', 'bg-red-500/10', 'text-red-400', 'border-red-500/20');
+        if (kind === 'success') {
+          el.classList.add('block', 'bg-green-500/10', 'text-green-400', 'border', 'border-green-500/20');
+        } else if (kind === 'error') {
+          el.classList.add('block', 'bg-red-500/10', 'text-red-400', 'border', 'border-red-500/20');
+        }
+        setTimeout(() => el.classList.add('hidden'), 5000);
+      }
+
+      function boolVal(el) {
+        return Boolean(el?.checked);
+      }
+
+      function applyFleetFromServer(f, effective) {
+        const eff = effective && typeof effective === 'object' ? effective : {};
+        const src = f && typeof f === 'object' && Object.keys(f).length ? f : eff;
+        document.getElementById('dn-base').value =
+          src.baseUrl != null && String(src.baseUrl) !== '••••' ? String(src.baseUrl) : '';
+        document.getElementById('dn-path').value = src.batchPath != null ? String(src.batchPath) : '';
+        document.getElementById('dn-enabled').checked =
+          src.enabled === true || src.enabled === 'true' || src.enabled === 1;
+        document.getElementById('dn-interval').value =
+          src.intervalSec != null && src.intervalSec !== '' ? String(src.intervalSec) : '';
+        document.getElementById('dn-auth-name').value = src.authHeaderName != null ? String(src.authHeaderName) : '';
+        document.getElementById('dn-auth-val').value = '';
+        ['includeDashboardEvents', 'includeAuditEvents', 'includeStateUsbSnapshot', 'includeKyrIncidents'].forEach((k) => {
+          const id = {
+            includeDashboardEvents: 'dn-inc-dash',
+            includeAuditEvents: 'dn-inc-audit',
+            includeStateUsbSnapshot: 'dn-inc-usb',
+            includeKyrIncidents: 'dn-inc-kyr',
+          }[k];
+          const el = document.getElementById(id);
+          if (!el) return;
+          const v = src[k];
+          if (v === undefined || v === null) el.checked = true;
+          else el.checked = v === true || v === 'true' || v === 1;
+        });
+      }
+
+      function applyRelayFromServer(f) {
+        if (!f || typeof f !== 'object') return;
+        document.getElementById('relay-enabled').checked =
+          f.enabled === true || f.enabled === 'true' || f.enabled === 1;
+        document.getElementById('relay-url').value = f.url != null ? String(f.url) : '';
+        // handle fallback element logic if missing
+        if(document.getElementById('relay-method')) document.getElementById('relay-method').value = f.method != null ? String(f.method) : '';
+        document.getElementById('relay-auth-h').value = f.authHeader != null ? String(f.authHeader) : '';
+        document.getElementById('relay-auth-v').value = '';
+      }
+
+      function fleetBodyFromForm() {
+        const body = {
+          baseUrl: document.getElementById('dn-base').value.trim() || null,
+          batchPath: document.getElementById('dn-path').value.trim() || null,
+          enabled: boolVal(document.getElementById('dn-enabled')),
+          intervalSec: document.getElementById('dn-interval').value,
+          authHeaderName: document.getElementById('dn-auth-name').value.trim() || null,
+          includeDashboardEvents: boolVal(document.getElementById('dn-inc-dash')),
+          includeAuditEvents: boolVal(document.getElementById('dn-inc-audit')),
+          includeStateUsbSnapshot: boolVal(document.getElementById('dn-inc-usb')),
+          includeKyrIncidents: boolVal(document.getElementById('dn-inc-kyr')),
+        };
+        const av = document.getElementById('dn-auth-val').value;
+        if (av.trim() !== '') {
+          body.authHeaderValue = av.trim();
+        }
+        return { dataNodeSyncFleet: body };
+      }
+
+      function relayBodyFromForm() {
+        const body = {
+          enabled: boolVal(document.getElementById('relay-enabled')),
+          url: document.getElementById('relay-url').value.trim() || null,
+          method: 'POST', // Simplified UI defaults to POST
+          authHeader: document.getElementById('relay-auth-h').value.trim() || null,
+        };
+        const av = document.getElementById('relay-auth-v').value;
+        if (av.trim() !== '') {
+          body.authValue = av.trim();
+        }
+        return { dataNodeIncidentRelay: body };
+      }
+
+      async function refresh() {
+        const data = await api.get();
+        document.getElementById('effective-preview').textContent = JSON.stringify(
+          {
+            effectiveDataNodeSyncFleet: data.effectiveDataNodeSyncFleet,
+            effectiveIncidentRelay: data.effectiveIncidentRelay,
+            raidToRobotSecretFromEnv: data.raidToRobotSecretFromEnv,
+            raidToRobotSecretFromFile: data.raidToRobotSecretFromFile,
+            fleetEnrollmentSecretFromEnv: data.fleetEnrollmentSecretFromEnv,
+            fleetEnrollmentSecretFromFile: data.fleetEnrollmentSecretFromFile,
+          },
+          null,
+          2,
+        );
+        applyFleetFromServer(data.dataNodeSyncFleetFile, data.effectiveDataNodeSyncFleet);
+        applyRelayFromServer(data.dataNodeIncidentRelayFile);
+        document.getElementById('status-line').textContent =
+          'Loaded state v' + (data.version || 1);
+
+        const envBanner = document.getElementById('secrets-env-banner');
+        if (data.fleetEnrollmentSecretFromEnv || data.raidToRobotSecretFromEnv) {
+          const parts = [];
+          if (data.fleetEnrollmentSecretFromEnv) parts.push('ROBOT_FLEET_ENROLLMENT_SECRET');
+          if (data.raidToRobotSecretFromEnv) parts.push('RAID_TO_ROBOT_SECRET');
+          envBanner.textContent =
+            'Effective value(s) come from server environment (.env): ' +
+            parts.join(', ') +
+            '. Buttons below only update the file; they are disabled by the API while env overrides. To rotate in production, edit .env and restart, then update each robot.';
+          envBanner.classList.remove('hidden');
+        } else {
+          envBanner.classList.add('hidden');
+        }
+
+        return data;
+      }
+
+      document.getElementById('fleet-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const msg = document.getElementById('fleet-message');
+        const btn = ev.target.querySelector('button[type="submit"]');
+        const origText = btn.textContent;
+        btn.textContent = "Saving...";
+        btn.disabled = true;
+        try {
+          await api.put(fleetBodyFromForm());
+          setMessage(msg, 'Fleet section saved successfully', 'success');
+          await refresh();
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        } finally {
+          btn.textContent = origText;
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById('relay-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const msg = document.getElementById('relay-message');
+        try {
+          await api.put(relayBodyFromForm());
+          setMessage(msg, 'Relay section saved', 'success');
+          await refresh();
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      document.getElementById('secrets-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const msg = document.getElementById('secrets-message');
+        const raid = document.getElementById('sec-raid').value;
+        const fleet = document.getElementById('sec-fleet').value;
+        try {
+          await api.put({
+            raidToRobotSecret: raid,
+            fleetEnrollmentSecret: fleet,
+          });
+          document.getElementById('sec-raid').value = '';
+          document.getElementById('sec-fleet').value = '';
+          setMessage(msg, 'Secrets updated successfully', 'success');
+          await refresh();
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      function showRotateOnceHint(text) {
+        const el = document.getElementById('rotate-once-hint');
+        el.textContent = text;
+        el.classList.remove('hidden');
+      }
+
+      document.getElementById('btn-rotate-fleet').addEventListener('click', async () => {
+        const msg = document.getElementById('secrets-message');
+        if (
+          !confirm(
+            'Generate a new fleet enrollment secret in services-registration.json? Every robot must use the new value for POST /api/robots/enroll (update robot .env or launch config). Continue?',
+          )
+        ) {
+          return;
+        }
+        try {
+          const res = await api.rotateFleetEnrollment();
+          const plain =
+            typeof res.fleetEnrollmentSecret === 'string' && res.fleetEnrollmentSecret.trim() !== ''
+              ? res.fleetEnrollmentSecret.trim()
+              : '';
+          if (plain) {
+            showRotateOnceHint('New fleet enrollment secret (copy now): ' + plain);
+          }
+          setMessage(msg, 'Fleet enrollment secret rotated in file.', 'success');
+          await refresh();
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      document.getElementById('btn-rotate-raid').addEventListener('click', async () => {
+        const msg = document.getElementById('secrets-message');
+        if (
+          !confirm(
+            'Generate a new RAID→robot secret in services-registration.json? Robots must accept the new X-Raid-To-Robot-Secret on operatorRegistryUrl. Continue?',
+          )
+        ) {
+          return;
+        }
+        try {
+          const res = await api.rotateRaidToRobot();
+          const plain =
+            typeof res.raidToRobotSecretPlain === 'string' && res.raidToRobotSecretPlain.trim() !== ''
+              ? res.raidToRobotSecretPlain.trim()
+              : '';
+          if (plain) {
+            showRotateOnceHint('New RAID→robot secret (copy now): ' + plain);
+          }
+          setMessage(msg, 'RAID→robot secret rotated in file.', 'success');
+          await refresh();
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      document.getElementById('btn-test-dn').addEventListener('click', async () => {
+        const out = document.getElementById('test-dn-out');
+        out.classList.remove('hidden');
+        out.textContent = 'Running test...';
+        const useSaved = document.getElementById('test-dn-use-saved').checked;
+        const base = document.getElementById('test-dn-base').value.trim();
+        const robotId = document.getElementById('test-dn-robot').value.trim();
+        const body = { useSaved };
+        if (robotId) body.robotId = robotId;
+        if (!useSaved && base) {
+          body.override = { baseUrl: base };
+        }
+        try {
+          const res = await api.testDn(body);
+          out.textContent = JSON.stringify(res, null, 2);
+          out.classList.add('border-green-500/50', 'text-green-300');
+          out.classList.remove('border-red-500/50', 'text-red-300');
+        } catch (e) {
+          out.textContent = `Error: ${e.message}`;
+          out.classList.add('border-red-500/50', 'text-red-300');
+          out.classList.remove('border-green-500/50', 'text-green-300');
+        }
+      });
+
+      document.getElementById('admin-logout').addEventListener('click', async () => {
+        await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' });
+        window.location.href = '/ui/login.html';
+      });
+
+      (async () => {
+        try {
+          await refresh();
+        } catch (e) {
+          document.getElementById('status-line').textContent = 'Error loading configuration';
+          document.getElementById('status-line').classList.add('text-red-400');
+        }
+      })();
+    </script>
+    <style>
+      .custom-scrollbar::-webkit-scrollbar {
+        height: 6px;
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-slate-900 rounded-full;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-slate-700 rounded-full;
+      }
+    </style>
+  </body>
+</html>

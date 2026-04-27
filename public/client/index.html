@@ -3,112 +3,229 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Task-router-x402 — Public client</title>
-    <link rel="stylesheet" href="/client/styles.css" />
+    <title>Task Router — Homebrew Robotics</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <!-- Use the compiled Tailwind CSS file -->
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header>
-      <h1>Task-router-x402</h1>
-      <p>Public UI to run robot actions with Solana wallet payments</p>
-    </header>
-
-    <main>
-      <!-- Mode -->
-      <section class="panel mode-selector">
-        <h2>Mode</h2>
-        <div class="mode-buttons">
-          <button id="mode-direct" class="mode-btn active">Direct</button>
-          <button id="mode-raid" class="mode-btn">Task router</button>
-        </div>
-        <p class="mode-description" id="mode-description">
-          <strong>Direct:</strong> Choose robot and action. Full control.
-        </p>
-      </section>
-
-      <!-- Wallet -->
-      <section class="panel wallet-section">
-        <h2>Wallet</h2>
-        <div id="wallet-status" class="wallet-status">
-          <p>Wallet not connected</p>
-          <button id="connect-wallet" class="btn-primary">Connect wallet</button>
-        </div>
-        <div id="wallet-info" class="wallet-info hidden">
-          <p><strong>Address:</strong> <span id="wallet-address"></span></p>
-          <p><strong>Balance:</strong> <span id="wallet-balance"></span> SOL</p>
-          <button id="disconnect-wallet" class="btn-secondary">Disconnect</button>
-        </div>
-      </section>
-
-      <!-- Direct: robots list -->
-      <section id="direct-mode" class="panel">
-        <h2>Available robots</h2>
-        <div id="robots-list" class="robots-list">
-          <p class="loading">Loading robots...</p>
-        </div>
-      </section>
-
-      <!-- Task Router mode (API: raid): actions -->
-      <section id="raid-mode" class="panel hidden">
-        <h2>Available actions</h2>
-        <div id="commands-list" class="commands-list">
-          <p class="loading">Loading actions...</p>
-        </div>
-      </section>
-
-      <!-- Action form -->
-      <section id="action-form-section" class="panel hidden">
-        <h2 id="action-form-title">Execute action</h2>
-        <div id="action-form" class="action-form">
-          <!-- Filled dynamically -->
-        </div>
-        <div id="action-preview" class="action-preview hidden">
-          <h3>Estimated cost</h3>
-          <div class="price-info">
-            <p><strong>Cost:</strong> <span id="preview-price">-</span> SOL</p>
-            <p><strong>Robot:</strong> <span id="preview-robot">-</span></p>
-            <p><strong>Action:</strong> <span id="preview-action">-</span></p>
+    <!-- Top Navigation Bar -->
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+          <a href="/client" class="flex items-center gap-2 hover:opacity-90 transition-opacity no-underline">
+            <img src="/brand/hbr-mark.png" alt="Homebrew Robotics" width="32" height="32" class="h-8 w-8 object-contain shrink-0" />
+            <div class="flex flex-col leading-tight text-left">
+              <span class="text-lg font-bold text-white tracking-tight">Homebrew Robotics</span>
+              <span class="text-xs text-slate-400">Task Router (x402)</span>
+            </div>
+          </a>
+          <div class="flex gap-4">
+            <a href="/teleoperator" class="btn-secondary text-xs">Teleoperator Portal</a>
+            <a href="/ui" class="btn-secondary text-xs">Admin Login</a>
           </div>
-          <button id="execute-action" class="btn-primary" disabled>Execute action</button>
         </div>
-      </section>
+      </div>
+    </nav>
 
-      <!-- Execution status -->
-      <section id="execution-status" class="panel hidden">
-        <h2>Execution status</h2>
-        <div id="status-content" class="status-content">
-          <!-- Filled dynamically -->
+    <!-- Hero Section -->
+    <div class="relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none"></div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 relative">
+        <div class="text-center max-w-3xl mx-auto">
+          <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+            Robot operations powered by <span class="text-solana">Solana</span>
+          </h1>
+          <p class="text-lg text-slate-400 mb-8">
+            Public UI to discover connected robots, execute remote actions, and handle micro-transactions via x402 protocol.
+          </p>
+          <div class="flex justify-center gap-4">
+            <a href="#demo-zone" class="btn-primary px-6 py-3 text-base">Try Demo Calls</a>
+            <a href="/teleoperator/register.html" class="btn-secondary px-6 py-3 text-base">Become an Operator</a>
+          </div>
         </div>
-      </section>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" id="demo-zone">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Left Column: Controls & Wallet -->
+        <div class="space-y-6">
+          
+          <!-- Mode -->
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+              </svg>
+              Execution Mode
+            </h2>
+            <div class="flex p-1 bg-slate-900/80 rounded-lg mb-3">
+              <button id="mode-direct" class="flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow">Direct</button>
+              <button id="mode-raid" class="flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800">Task Router</button>
+            </div>
+            <p class="text-sm text-slate-400" id="mode-description">
+              <strong>Direct:</strong> Choose a specific robot and action. Full control.
+            </p>
+          </section>
+
+          <!-- Wallet -->
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-solana" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+              </svg>
+              Wallet Status
+            </h2>
+            <div id="wallet-status" class="flex flex-col items-center justify-center p-4 border border-dashed border-slate-700 rounded-lg bg-slate-900/30">
+              <p class="text-sm text-slate-400 mb-3">Wallet not connected</p>
+              <button id="connect-wallet" class="btn-primary w-full">Connect Solana Wallet</button>
+            </div>
+            <div id="wallet-info" class="hidden">
+              <div class="bg-slate-900/80 rounded-lg p-3 mb-3 border border-slate-700/50">
+                <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-800">
+                  <span class="text-xs text-slate-500">Address</span>
+                  <span id="wallet-address" class="text-xs font-mono text-slate-300 truncate max-w-[150px]"></span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-slate-500">Balance</span>
+                  <div class="flex items-center gap-1">
+                    <span id="wallet-balance" class="text-sm font-semibold text-solana"></span>
+                    <span class="text-xs text-slate-400">SOL</span>
+                  </div>
+                </div>
+              </div>
+              <button id="disconnect-wallet" class="btn-secondary w-full text-xs py-1.5">Disconnect</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- Right Column: Actions & Status -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Direct: robots list -->
+          <section id="direct-mode" class="panel">
+            <h2 class="text-lg font-semibold mb-4">Available Robots</h2>
+            <div id="robots-list" class="client-demo-list">
+              <div class="animate-pulse flex space-x-4">
+                <div class="flex-1 space-y-4 py-1">
+                  <div class="h-4 bg-slate-700 rounded w-3/4"></div>
+                  <div class="space-y-2">
+                    <div class="h-4 bg-slate-700 rounded"></div>
+                    <div class="h-4 bg-slate-700 rounded w-5/6"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Task Router mode (API: raid): actions -->
+          <section id="raid-mode" class="panel hidden">
+            <h2 class="text-lg font-semibold mb-4">Available Actions (Task Router)</h2>
+            <div id="commands-list" class="client-demo-list client-demo-list--commands">
+              <p class="text-slate-400 italic text-sm">Loading available network actions...</p>
+            </div>
+          </section>
+
+          <!-- Action form -->
+          <section id="action-form-section" class="panel hidden border-indigo-500/30 shadow-lg shadow-indigo-500/5">
+            <h2 id="action-form-title" class="text-lg font-semibold mb-4 text-indigo-300">Execute Action</h2>
+            <div id="action-form" class="action-form space-y-4">
+              <!-- Filled dynamically -->
+            </div>
+            
+            <div id="action-preview" class="hidden mt-6 pt-5 border-t border-slate-700">
+              <h3 class="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">Execution Summary</h3>
+              <div class="bg-slate-900/80 rounded-lg p-4 border border-slate-700/50 mb-4 space-y-2">
+                <div class="flex justify-between">
+                  <span class="text-sm text-slate-500">Robot:</span>
+                  <span id="preview-robot" class="text-sm font-medium text-slate-200">-</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-sm text-slate-500">Action:</span>
+                  <span id="preview-action" class="text-sm font-medium text-slate-200">-</span>
+                </div>
+                <div class="flex justify-between pt-2 border-t border-slate-800">
+                  <span class="text-sm text-slate-400">Estimated Cost:</span>
+                  <div class="text-right">
+                    <span id="preview-price" class="text-lg font-bold text-solana">-</span>
+                    <span class="text-xs text-slate-500 ml-1">SOL</span>
+                  </div>
+                </div>
+              </div>
+              <button id="execute-action" class="btn-primary w-full shadow-lg shadow-indigo-600/20" disabled>Execute Request</button>
+            </div>
+          </section>
+
+          <!-- Execution status -->
+          <section id="execution-status" class="panel hidden bg-slate-800/80 border-slate-600">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              Execution Status
+            </h2>
+            <div id="status-content" class="bg-slate-900 rounded-lg p-4 font-mono text-xs text-slate-300 h-48 overflow-y-auto border border-slate-700 shadow-inner">
+              <!-- Filled dynamically -->
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
 
+    <footer class="border-t border-slate-800 py-6 mt-4 text-center text-sm text-slate-500">
+      <p class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+        <a href="https://www.homebrew.build/" class="text-slate-400 hover:text-slate-300 no-underline" rel="noopener noreferrer">Homebrew Robotics — homebrew.build</a>
+        <span class="text-slate-600 select-none" aria-hidden="true">·</span>
+        <a href="https://x.com/homebrewrobots" class="text-slate-400 hover:text-slate-300 no-underline" rel="noopener noreferrer">@homebrewrobots on X</a>
+      </p>
+    </footer>
+
+    <!-- Modals Overlay -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 hidden transition-opacity"></div>
+
     <!-- Wallet selector modal -->
-    <div id="wallet-selector-modal" class="modal hidden">
-      <div class="modal-content">
-        <h2>Select wallet</h2>
-        <p class="wallet-selector-hint">Choose Solana wallet to connect. When opening the site by IP (not localhost), Phantom may not open — use Backpack. In incognito, allow popups. MetaMask is for Ethereum and not used here.</p>
-        <div id="wallet-selector-list" class="wallet-selector-list">
+    <div id="wallet-selector-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden pointer-events-none">
+      <div class="panel bg-slate-800 w-full max-w-md shadow-2xl pointer-events-auto transform scale-95 opacity-0 transition-all duration-200" id="wallet-modal-content">
+        <h2 class="text-xl font-bold mb-2">Select Wallet</h2>
+        <p class="text-sm text-slate-400 mb-6">Choose a Solana wallet to connect. (Phantom may not auto-open by IP, use Backpack instead if needed).</p>
+        
+        <div id="wallet-selector-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
           <!-- Filled by JS -->
         </div>
-        <button type="button" id="wallet-selector-cancel" class="btn-secondary">Cancel</button>
+        
+        <div class="flex justify-end pt-4 border-t border-slate-700">
+          <button type="button" id="wallet-selector-cancel" class="btn-secondary">Cancel</button>
+        </div>
       </div>
     </div>
 
     <!-- Payment modal -->
-    <div id="payment-modal" class="modal hidden">
-      <div class="modal-content">
-        <h2>Payment</h2>
-        <div id="payment-details" class="payment-details">
+    <div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden pointer-events-none">
+      <div class="panel bg-slate-800 border-solana/30 w-full max-w-md shadow-2xl shadow-solana/10 pointer-events-auto transform scale-95 opacity-0 transition-all duration-200" id="payment-modal-content">
+        <div class="flex items-center gap-3 mb-4 border-b border-slate-700 pb-4">
+          <div class="w-10 h-10 rounded-full bg-solana/10 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-solana" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold">Confirm Payment</h2>
+        </div>
+        
+        <div id="payment-details" class="bg-slate-900/50 rounded-lg p-4 mb-6 border border-slate-700 font-mono text-sm space-y-2">
           <!-- Filled dynamically -->
         </div>
-        <div class="modal-actions">
-          <button id="confirm-payment" class="btn-primary">Confirm payment</button>
-          <button id="cancel-payment" class="btn-secondary">Cancel</button>
+        
+        <div class="flex gap-3">
+          <button id="cancel-payment" class="btn-secondary flex-1">Cancel</button>
+          <button id="confirm-payment" class="btn-primary flex-1 !bg-solana !text-slate-900 hover:!bg-solana/90 font-bold">Approve</button>
         </div>
       </div>
     </div>
 
-    <!-- Notifications -->
-    <div id="notifications" class="notifications"></div>
+    <!-- Notifications Toast Area -->
+    <div id="notifications" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
     <script>
       // Load Solana Web3.js globally
@@ -119,17 +236,127 @@
           // IIFE may export to window.solanaWeb3 or global
           if (typeof window.solanaWeb3 !== 'undefined') {
             window.solanaWeb3Ready = true;
-            console.log('Solana Web3.js loaded');
           } else if (typeof solanaWeb3 !== 'undefined') {
             window.solanaWeb3 = solanaWeb3;
             window.solanaWeb3Ready = true;
-            console.log('Solana Web3.js loaded');
           }
           if (window.onSolanaWeb3Ready) window.onSolanaWeb3Ready();
         };
         document.head.appendChild(script);
       })();
+
+      // Modal logic overrides (to handle tailwind transition classes instead of just 'hidden')
+      // Note: We need to intercept the display logic slightly since app.js toggles the 'hidden' class
+      // We'll use a MutationObserver on body to enhance the modal experience
+      document.addEventListener('DOMContentLoaded', () => {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+              const target = mutation.target;
+              if (target.id === 'wallet-selector-modal' || target.id === 'payment-modal') {
+                const backdrop = document.getElementById('modal-backdrop');
+                const contentId = target.id === 'wallet-selector-modal' ? 'wallet-modal-content' : 'payment-modal-content';
+                const content = document.getElementById(contentId);
+                
+                const isHidden = target.classList.contains('hidden');
+                
+                if (!isHidden) {
+                  backdrop.classList.remove('hidden');
+                  // small delay to allow display:block to apply before opacity transition
+                  setTimeout(() => {
+                    content.classList.remove('scale-95', 'opacity-0');
+                    content.classList.add('scale-100', 'opacity-100');
+                  }, 10);
+                } else {
+                  content.classList.remove('scale-100', 'opacity-100');
+                  content.classList.add('scale-95', 'opacity-0');
+                  
+                  // Hide backdrop if no modals are open
+                  if (document.getElementById('wallet-selector-modal').classList.contains('hidden') && 
+                      document.getElementById('payment-modal').classList.contains('hidden')) {
+                    backdrop.classList.add('hidden');
+                  }
+                }
+              }
+            }
+          });
+        });
+
+        const wModal = document.getElementById('wallet-selector-modal');
+        const pModal = document.getElementById('payment-modal');
+        if(wModal) observer.observe(wModal, { attributes: true });
+        if(pModal) observer.observe(pModal, { attributes: true });
+        
+        // Mode toggle styling update 
+        const btnDirect = document.getElementById('mode-direct');
+        const btnRaid = document.getElementById('mode-raid');
+        
+        const updateModeStyles = () => {
+          if (btnDirect.classList.contains('active')) {
+            btnDirect.className = 'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow active';
+            btnRaid.className = 'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+          } else {
+            btnRaid.className = 'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 bg-indigo-600 text-white shadow active';
+            btnDirect.className = 'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-200 text-slate-400 hover:text-slate-200 hover:bg-slate-800';
+          }
+        };
+        
+        btnDirect.addEventListener('click', () => setTimeout(updateModeStyles, 10));
+        btnRaid.addEventListener('click', () => setTimeout(updateModeStyles, 10));
+      });
     </script>
+    <style>
+      /* Demo list + action forms: see src/styles/input.css (.client-*, .action-form) */
+      /* Wallet items */
+      .wallet-item {
+        @apply flex items-center p-3 rounded-lg border border-slate-700/50 hover:bg-slate-700 hover:border-slate-500 cursor-pointer transition-all duration-200 mb-2;
+      }
+      .wallet-item img {
+        @apply w-8 h-8 rounded-md mr-3;
+      }
+      .wallet-item span {
+        @apply text-sm font-medium text-slate-200;
+      }
+      
+      /* Notifications */
+      .notification {
+        @apply bg-slate-800 border-l-4 border-indigo-500 p-4 rounded shadow-lg pointer-events-auto flex justify-between items-start mb-2 transform transition-all duration-300 translate-x-0 opacity-100;
+      }
+      .notification.error {
+        @apply border-red-500;
+      }
+      .notification.success {
+        @apply border-green-500;
+      }
+      
+      /* Status log */
+      .status-entry {
+        @apply mb-2 border-b border-slate-800 pb-2 last:border-0;
+      }
+      .status-time {
+        @apply text-slate-500 mr-2;
+      }
+      .status-success {
+        @apply text-green-400;
+      }
+      .status-error {
+        @apply text-red-400;
+      }
+      
+      /* Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-slate-900 rounded-full;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-slate-700 rounded-full;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-slate-600;
+      }
+    </style>
     <script type="module" src="/client/app.js"></script>
   </body>
 </html>

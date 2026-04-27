@@ -1,7 +1,7 @@
 const { v4: uuid } = require('uuid');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
-const { rowToRobot, toPublicRobot } = require('./robotRepository');
+const { rowToRobot, toPublicRobot, REDACTED_TOKEN_PLACEHOLDER } = require('./robotRepository');
 
 class RobotRegistry {
   /**
@@ -64,6 +64,7 @@ class RobotRegistry {
     operatorRegistryUrl,
     datasetHttpHost,
     datasetHttpPort,
+    dataNodeSyncOverride = null,
   }) {
     const id = uuid();
     const ek =
@@ -82,6 +83,12 @@ class RobotRegistry {
       datasetHttpPort != null && !Number.isNaN(Number(datasetHttpPort))
         ? Number(datasetHttpPort)
         : null;
+    const dno =
+      dataNodeSyncOverride != null &&
+      typeof dataNodeSyncOverride === 'object' &&
+      !Array.isArray(dataNodeSyncOverride)
+        ? dataNodeSyncOverride
+        : null;
     const robot = {
       id,
       name: name || `Robot-${id.slice(0, 6)}`,
@@ -95,6 +102,7 @@ class RobotRegistry {
       operatorRegistryUrl: oru,
       datasetHttpHost: dHost,
       datasetHttpPort: dPort,
+      dataNodeSyncOverride: dno,
       status: {
         state: 'unknown',
         message: 'Awaiting first health check',
@@ -177,6 +185,35 @@ class RobotRegistry {
     }
 
     const next = { ...updates };
+    let resolvedDataNodeSyncOverride =
+      robot.dataNodeSyncOverride != null ? robot.dataNodeSyncOverride : null;
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'dataNodeSyncOverride')) {
+      const raw = updates.dataNodeSyncOverride;
+      if (raw === null) {
+        resolvedDataNodeSyncOverride = null;
+      } else if (typeof raw === 'object' && !Array.isArray(raw)) {
+        const incoming = { ...raw };
+        if (incoming.authHeaderValue === REDACTED_TOKEN_PLACEHOLDER) {
+          delete incoming.authHeaderValue;
+        }
+        const prev =
+          robot.dataNodeSyncOverride != null && typeof robot.dataNodeSyncOverride === 'object'
+            ? robot.dataNodeSyncOverride
+            : {};
+        const v = incoming.authHeaderValue;
+        if (v === undefined || v === null || String(v).trim() === '') {
+          if (prev.authHeaderValue != null && String(prev.authHeaderValue).trim() !== '') {
+            incoming.authHeaderValue = prev.authHeaderValue;
+          } else {
+            delete incoming.authHeaderValue;
+          }
+        }
+        resolvedDataNodeSyncOverride = Object.keys(incoming).length ? incoming : null;
+      }
+      delete next.dataNodeSyncOverride;
+    }
+
     if (next.teleopSecret === '' || next.teleopSecret === undefined) {
       delete next.teleopSecret;
     }
@@ -207,6 +244,7 @@ class RobotRegistry {
     const merged = {
       ...robot,
       ...next,
+      dataNodeSyncOverride: resolvedDataNodeSyncOverride,
       status: {
         ...robot.status,
         ...(next.status || {}),

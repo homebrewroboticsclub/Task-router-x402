@@ -80,6 +80,47 @@ describe('admin HTTP', () => {
     assert.ok(typeof res.body === 'object');
   });
 
+  test('GET /services-registration with session', async () => {
+    const adminApp = express();
+    adminApp.use(cookieParser());
+    adminApp.use(express.json());
+    adminApp.use(
+      '/api/admin',
+      createAdminRouter({
+        adminConfig,
+        config: {
+          dataNodeSyncFleet: {
+            provisionEnabled: false,
+            baseUrl: null,
+            batchPath: '/v1/ingest/robot-events',
+            enabled: false,
+            intervalSec: 300,
+            authHeaderName: 'Authorization',
+            authHeaderValue: null,
+            includeDashboardEvents: true,
+            includeAuditEvents: true,
+            includeStateUsbSnapshot: true,
+            includeKyrIncidents: true,
+          },
+          robots: { raidToRobotSecret: null, fleetEnrollmentSecret: null },
+          dataNodeIncidentRelay: { enabled: false, url: '', method: 'POST', authHeader: null, authValue: null },
+        },
+        settingsStore: {
+          getSettings: () => ({}),
+          saveSettings: () => ({ rpcProvider: 'public' }),
+        },
+      }),
+    );
+    const agent = request.agent(adminApp);
+    await agent
+      .post('/api/admin/login')
+      .send({ username: 'admtest', password: 'secretpass' })
+      .expect(200);
+    const res = await agent.get('/api/admin/services-registration').expect(200);
+    assert.ok(res.body.effectiveDataNodeSyncFleet);
+    assert.equal(res.body.raidToRobotSecretFromEnv, false);
+  });
+
   test('POST /logout clears session', async () => {
     const agent = request.agent(app);
     await agent

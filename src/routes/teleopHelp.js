@@ -7,17 +7,25 @@ const {
   listOpenHelpRequestsForTeleoperator,
   getOpenHelpRequestMeta,
   acceptHelpRequest,
+  declineTeleopSessionBeforeProxy,
+  endTeleopSessionWithOperatorReason,
   updateHelpRequestPeaqClaim,
   getHelpRequestForRobotClaim,
   setHelpRequestTeleopGrant,
   getTeleopSessionGrantForRobot,
   getTeleoperatorWalletPublicKey,
 } = require('../services/teleopHelpRepository');
+const { closeProxyOperatorWebSocket } = require('../ws/teleopProxyWsRegistry');
+const {
+  TELEOP_OPERATOR_END_REASON,
+  isValidSessionEndReason,
+} = require('../utils/teleopOperatorEndReasons');
 const {
   normalizeRobotTeleopHelpBody,
   KyrPeaqContextTooLargeError,
   KyrPeaqContextInvalidError,
 } = require('../utils/teleopHelpPayload');
+const { relayHelpRequestToDataNode } = require('../services/dataNodeIncidentRelay');
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -53,6 +61,31 @@ async function persistPeaqClaimWithFallback(pool, peaqClaimService, helpRequestI
   }
 }
 
+/**
+ * @param {{ teleopHub: object, grantRepository: object | null, row: object, duplicate: boolean }} p
+ */
+async function broadcastHelpRequestToHub({ teleopHub, grantRepository, row, duplicate }) {
+  const event = {
+    type: 'help_request',
+    data: {
+      id: row.id,
+      robotId: row.robot_id,
+      status: row.status,
+      payload: row.payload,
+      createdAt: row.created_at,
+      duplicate,
+    },
+  };
+  let allowedIds = null;
+  if (grantRepository) {
+    const grantCount = await grantRepository.countActiveGrantsForRobot(row.robot_id);
+    if (grantCount > 0) {
+      allowedIds = await grantRepository.listActiveTeleoperatorIdsForRobot(row.robot_id);
+    }
+  }
+  teleopHub.broadcastHelpRequest(event, { allowedTeleoperatorIds: allowedIds });
+}
+
 function readRobotTeleopSecret(req) {
   const h = req.headers['x-robot-teleop-secret'];
   if (typeof h === 'string' && h.length > 0) {
@@ -76,6 +109,7 @@ function readRobotTeleopSecret(req) {
  * @param {{ isEnabled: () => boolean, buildClaim: (input: { helpRequestId: string, robotId: string }) => Promise<object>, buildFailureClaim?: (input: { helpRequestId: string, robotId: string, errorMessage?: string }) => object }|null} [deps.peaqClaimService]
  * @param {number} [deps.peaqClaimSyncTimeoutMs]
  * @param {ReturnType<import('../services/teleopSessionGrantService').createTeleopSessionGrantService>|null} [deps.teleopSessionGrantService]
+ * @param {object|null} [deps.config] - full app config (optional DATA_NODE incident relay)
  */
 function createTeleopHelpRouter({
   pool,
@@ -87,6 +121,7 @@ function createTeleopHelpRouter({
   peaqClaimService = null,
   peaqClaimSyncTimeoutMs = 2500,
   teleopSessionGrantService = null,
+  config = null,
 }) {
   const router = express.Router();
 
@@ -97,7 +132,7 @@ function createTeleopHelpRouter({
    *     tags:
    *       - Teleop
    *     summary: Robot requests operator assistance (LAN, shared secret)
-   *     description: Requires X-Robot-Teleop-Secret matching the value set when the robot was registered. Body must include string `message`. `metadata` is normalized — `task_id`, `error_context`, `situation_report` are strings (default empty); optional `situation_report` is UTF-8 narrative, max ~64 KiB (truncated). Optional opaque object `metadata.kyr_peaq_context` for peaq (max 64 KiB JSON). Legacy clients may omit `metadata`. If an open request already exists for this robot, returns that request with duplicate=true. Response includes top-level `id` (same as `helpRequest.id`) for claim polling. When **TELEOP_GRANT_SIGNING_SECRET_KEY** is set, response includes **`teleopGrantPollUrl`** (relative path) — after operator **accept**, `GET` that URL with the same robot secret to obtain **`teleopGrantPayload`** / **`teleopGrantSignature`** before KYR `open_session` (otherwise KYR keeps mock `operator_pubkey` / `pending_from_raid`). When **PEAQ_ENABLED** and RPC/DID env are set, the server may include `peaq_claim` inline (if `did.read` finishes within **PEAQ_CLAIM_SYNC_TIMEOUT_MS**); otherwise use **GET /api/robots/{robotId}/peaq/claim**. If `did.read` fails, RAID stores a fallback claim with **raid_peaq_read_status=failed** (help request still succeeds). WebSocket event `help_request` is sent only to teleoperators with an active grant for this robot when the robot has at least one grant; otherwise to all connected teleoperators.
+   *     description: Requires X-Robot-Teleop-Secret matching the value set when the robot was registered. Body must include string `message` and object `metadata` (may be `{}`). `metadata` is normalized — `task_id`, `error_context`, `situation_report` are strings (default empty); optional `dataset_id`, `kyr_session_id`, `kyr_robot_id` for DATA_NODE correlation (strings, default empty; each truncated at ~1 KiB UTF-8); optional `situation_report` is UTF-8 narrative, max ~64 KiB (truncated). Optional opaque object `metadata.kyr_peaq_context` for peaq (max 64 KiB JSON). If an open request already exists for this robot, returns that request with duplicate=true. Response includes top-level `id` (same as `helpRequest.id`) for claim polling. When **TELEOP_GRANT_SIGNING_SECRET_KEY** is set, response includes **`teleopGrantPollUrl`** (relative path) — after operator **accept**, `GET` that URL with the same robot secret to obtain **`teleopGrantPayload`** / **`teleopGrantSignature`** before KYR `open_session` (otherwise KYR keeps mock `operator_pubkey` / `pending_from_raid`). When **PEAQ_ENABLED** and RPC/DID env are set, the server may include `peaq_claim` inline (if `did.read` finishes within **PEAQ_CLAIM_SYNC_TIMEOUT_MS**); otherwise use **GET /api/robots/{robotId}/peaq/claim**. If `did.read` fails, RAID stores a fallback claim with **raid_peaq_read_status=failed** (help request still succeeds). WebSocket event `help_request` is sent only to teleoperators with an active grant for this robot when the robot has at least one grant; otherwise to all connected teleoperators.
    *     parameters:
    *       - in: path
    *         name: robotId
@@ -117,7 +152,7 @@ function createTeleopHelpRouter({
    *       201:
    *         description: New help request created (same body shape as 200).
    *       400:
-   *         description: Invalid JSON body (e.g. missing or non-string `message`, or invalid `kyr_peaq_context` type).
+   *         description: Invalid JSON body (e.g. missing `message`/`metadata`, non-string `message`, non-object `metadata`, or invalid `kyr_peaq_context` type).
    *       401:
    *         description: Missing or invalid robot secret.
    *       404:
@@ -144,12 +179,28 @@ function createTeleopHelpRouter({
       if (typeof body.message !== 'string') {
         return res.status(400).json({ error: 'message is required and must be a string' });
       }
+      if (
+        body.metadata === undefined
+        || body.metadata === null
+        || typeof body.metadata !== 'object'
+        || Array.isArray(body.metadata)
+      ) {
+        return res.status(400).json({ error: 'metadata is required and must be a plain object' });
+      }
       const payload = normalizeRobotTeleopHelpBody(body);
 
       const { row, duplicate } = await createHelpRequest(pool, {
         robotId,
         payload,
       });
+
+      if (!duplicate && config) {
+        void relayHelpRequestToDataNode(config, {
+          helpRequestId: row.id,
+          robotId,
+          payload,
+        });
+      }
 
       let peaq_claim = null;
       if (peaqClaimService && peaqClaimService.isEnabled()) {
@@ -308,8 +359,10 @@ function createTeleopHelpRouter({
    *       Same authentication as POST teleop/help. After an operator accepts the help request, RAID stores
    *       **teleopGrantPayload** (UTF-8 JSON string) and **teleopGrantSignature** (Ed25519, base58 over raw UTF-8 bytes)
    *       when **TELEOP_GRANT_SIGNING_SECRET_KEY** is configured. Response includes **grantSignerPublicKey** for KYR **trusted_raid_keys** alignment.
-   *       Returns **404** `grant_not_ready` while the request is still open,
-   *       **404** `grant_unconfigured` when signing is disabled, or **404** `grant_absent` if the operator had no wallet pubkey.
+   *       Returns **404** `grant_not_ready` while the request is still **open** (no accept yet), **or** after accept was rolled back
+   *       (e.g. operator **decline-before-connect** returned the request to **open** and cleared grant fields). The robot must treat
+   *       `grant_not_ready` after a prior **200** as **invalidate cached SessionGrant** and continue polling. **404** `grant_unconfigured`
+   *       when signing is disabled, or **404** `grant_absent` if the operator had no wallet pubkey.
    *     parameters:
    *       - in: path
    *         name: robotId
@@ -401,7 +454,7 @@ function createTeleopHelpRouter({
    *     tags:
    *       - Teleop
    *     summary: List open help requests visible to the current operator
-   *     description: Includes open requests for robots with no active teleoperator_robot_grants (any logged-in operator), and for robots where this operator has an active grant. Each item `payload` includes `message` and `metadata` with `task_id`, `error_context`, `situation_report` (and any extra keys the robot sent).
+   *     description: Includes open requests for robots with no active teleoperator_robot_grants (any logged-in operator), and for robots where this operator has an active grant. Each item `payload` includes `message` and `metadata` with `task_id`, `error_context`, `situation_report`, optional DATA_NODE correlation fields `dataset_id`, `kyr_session_id`, `kyr_robot_id` (and any extra keys the robot sent).
    *     security:
    *       - TeleoperatorCookie: []
    *       - TeleoperatorBearer: []
@@ -538,6 +591,158 @@ function createTeleopHelpRouter({
     } catch (error) {
       logger.error('accept help request failed', { error: error.message });
       return res.status(500).json({ error: 'Failed to accept help request' });
+    }
+  });
+
+  /**
+   * @openapi
+   * /api/teleoperator/sessions/{sessionId}/decline-before-connect:
+   *   post:
+   *     tags:
+   *       - Teleop
+   *     summary: Decline task after brief, before robot proxy WebSocket
+   *     description: >
+   *       Ends the teleop session row, returns the help request to **open**, clears signed SessionGrant fields,
+   *       and excludes this operator from seeing this help request again. Allowed only while **robot_proxy_connected_at**
+   *       is still null (no `/ws/teleop/session/{sessionId}` connection has been established). No operator payment applies.
+   *     security:
+   *       - TeleoperatorCookie: []
+   *       - TeleoperatorBearer: []
+   *     parameters:
+   *       - in: path
+   *         name: sessionId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     responses:
+   *       200:
+   *         description: Help request reopened; other operators may accept.
+   *       401:
+   *         description: Not authenticated.
+   *       409:
+   *         description: Session not eligible (wrong operator, already ended, or proxy already connected).
+   */
+  teleopOnly.post('/sessions/:sessionId/decline-before-connect', async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      if (!validateUuid(sessionId)) {
+        return res.status(400).json({ error: 'sessionId must be a valid UUID' });
+      }
+      const result = await declineTeleopSessionBeforeProxy(pool, {
+        sessionId,
+        teleoperatorId: req.teleopUser.id,
+        operatorEndReason: TELEOP_OPERATOR_END_REASON.BRIEF_DECLINED_BEFORE_PROXY,
+      });
+      if (!result) {
+        return res.status(409).json({ error: 'Session cannot be declined before connect' });
+      }
+      await broadcastHelpRequestToHub({
+        teleopHub,
+        grantRepository,
+        row: result.helpRequest,
+        duplicate: false,
+      });
+      return res.json({
+        ok: true,
+        helpRequest: {
+          id: result.helpRequest.id,
+          robotId: result.helpRequest.robot_id,
+          status: result.helpRequest.status,
+        },
+      });
+    } catch (error) {
+      logger.error('decline-before-connect failed', { error: error.message });
+      return res.status(500).json({ error: 'Failed to decline session' });
+    }
+  });
+
+  /**
+   * @openapi
+   * /api/teleoperator/sessions/{sessionId}/end:
+   *   post:
+   *     tags:
+   *       - Teleop
+   *     summary: End an active proxied teleop session with a stable reason
+   *     description: >
+   *       Closes the help request and ends the session after the operator proxy WebSocket has connected
+   *       (**robot_proxy_connected_at** set). Body **`reason`** must be one of **graceful_complete**,
+   *       **operator_cancelled**, **network_quality_abort**, **client_error**. Idempotent if already ended.
+   *       Closes the operator WebSocket if still open. Payment settlement remains on the robot/KYR/x402 side.
+   *     security:
+   *       - TeleoperatorCookie: []
+   *       - TeleoperatorBearer: []
+   *     parameters:
+   *       - in: path
+   *         name: sessionId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - reason
+   *             properties:
+   *               reason:
+   *                 type: string
+   *                 enum:
+   *                   - graceful_complete
+   *                   - operator_cancelled
+   *                   - network_quality_abort
+   *                   - client_error
+   *     responses:
+   *       200:
+   *         description: Session ended (or already ended).
+   *       400:
+   *         description: Missing or invalid reason.
+   *       401:
+   *         description: Not authenticated.
+   *       404:
+   *         description: Session not found for this operator.
+   *       409:
+   *         description: Proxy not connected yet (use decline-before-connect) or conflict.
+   */
+  teleopOnly.post('/sessions/:sessionId/end', async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      if (!validateUuid(sessionId)) {
+        return res.status(400).json({ error: 'sessionId must be a valid UUID' });
+      }
+      const reason = req.body && req.body.reason;
+      if (!isValidSessionEndReason(reason)) {
+        return res.status(400).json({ error: 'Invalid or missing reason' });
+      }
+      const out = await endTeleopSessionWithOperatorReason(pool, {
+        sessionId,
+        teleoperatorId: req.teleopUser.id,
+        operatorEndReason: reason,
+      });
+      if (!out.ok) {
+        if (out.code === 'not_found') {
+          return res.status(404).json({ error: 'Session not found' });
+        }
+        if (out.code === 'proxy_not_connected') {
+          return res.status(409).json({
+            error: 'Proxy WebSocket was not connected; use POST .../decline-before-connect',
+          });
+        }
+        return res.status(409).json({ error: 'Session cannot be ended' });
+      }
+      closeProxyOperatorWebSocket(sessionId);
+      return res.json({
+        ok: true,
+        idempotent: Boolean(out.idempotent),
+        reason: out.operatorEndReason,
+        helpRequestId: out.helpRequestId,
+      });
+    } catch (error) {
+      logger.error('teleoperator session end failed', { error: error.message });
+      return res.status(500).json({ error: 'Failed to end session' });
     }
   });
 

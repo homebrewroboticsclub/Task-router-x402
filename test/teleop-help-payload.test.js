@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   MAX_SITUATION_REPORT_BYTES,
+  MAX_DATA_NODE_CORRELATION_ID_BYTES,
   MAX_KYR_PEAQ_CONTEXT_BYTES,
   normalizeRobotTeleopHelpBody,
   truncateUtf8,
@@ -19,6 +20,9 @@ test('normalizeRobotTeleopHelpBody fills metadata strings and preserves extra ke
   assert.equal(out.metadata.task_id, 't1');
   assert.equal(out.metadata.error_context, '');
   assert.equal(out.metadata.situation_report, '');
+  assert.equal(out.metadata.dataset_id, '');
+  assert.equal(out.metadata.kyr_session_id, '');
+  assert.equal(out.metadata.kyr_robot_id, '');
   assert.equal(out.metadata.battery, 12);
 });
 
@@ -35,6 +39,36 @@ test('normalizeRobotTeleopHelpBody missing metadata → empty standard fields', 
   assert.equal(out.metadata.task_id, '');
   assert.equal(out.metadata.error_context, '');
   assert.equal(out.metadata.situation_report, '');
+  assert.equal(out.metadata.dataset_id, '');
+  assert.equal(out.metadata.kyr_session_id, '');
+  assert.equal(out.metadata.kyr_robot_id, '');
+});
+
+test('normalizeRobotTeleopHelpBody DATA_NODE correlation ids coerced to strings', () => {
+  const out = normalizeRobotTeleopHelpBody({
+    message: 'm',
+    metadata: {
+      task_id: '',
+      error_context: '',
+      dataset_id: 42,
+      kyr_session_id: true,
+      kyr_robot_id: 'bot-a',
+    },
+  });
+  assert.equal(out.metadata.dataset_id, '42');
+  assert.equal(out.metadata.kyr_session_id, 'true');
+  assert.equal(out.metadata.kyr_robot_id, 'bot-a');
+});
+
+test('DATA_NODE correlation id truncated at MAX_DATA_NODE_CORRELATION_ID_BYTES', () => {
+  const longId = 'x'.repeat(MAX_DATA_NODE_CORRELATION_ID_BYTES + 50);
+  const out = normalizeRobotTeleopHelpBody({
+    message: 'm',
+    metadata: { task_id: '', error_context: '', dataset_id: longId },
+  });
+  assert.equal(Buffer.byteLength(out.metadata.dataset_id, 'utf8'), MAX_DATA_NODE_CORRELATION_ID_BYTES);
+  assert.equal(out.metadata.kyr_session_id, '');
+  assert.equal(out.metadata.kyr_robot_id, '');
 });
 
 test('truncateUtf8 does not split UTF-8 code point', () => {

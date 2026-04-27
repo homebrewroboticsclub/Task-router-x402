@@ -96,7 +96,7 @@ run('teleop dataset HTTP proxy', () => {
     await ensureRobotSchema(pool);
     await ensureTeleoperatorRobotGrantsSchema(pool);
     await pool.query(
-      'TRUNCATE teleop_sessions, help_requests, teleoperator_robot_grants, robots, teleoperators RESTART IDENTITY CASCADE',
+      'TRUNCATE help_request_operator_exclusions, teleop_sessions, help_requests, teleoperator_robot_grants, robots, teleoperators RESTART IDENTITY CASCADE',
     );
 
     const config = loadConfig([]);
@@ -162,7 +162,7 @@ run('teleop dataset HTTP proxy', () => {
     }
     if (pool) {
       await pool.query(
-        'TRUNCATE teleop_sessions, help_requests, teleoperator_robot_grants, robots, teleoperators RESTART IDENTITY CASCADE',
+        'TRUNCATE help_request_operator_exclusions, teleop_sessions, help_requests, teleoperator_robot_grants, robots, teleoperators RESTART IDENTITY CASCADE',
       );
       await pool.end();
     }

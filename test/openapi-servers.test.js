@@ -11,11 +11,15 @@ test('OpenAPI servers[0] is relative so Swagger Try it out uses current host', (
   );
 });
 
-test('OpenAPI defines RobotTeleopHelpRequest with situation_report', () => {
+test('OpenAPI defines RobotTeleopHelpRequest with situation_report and DATA_NODE correlation fields', () => {
   const schema = swaggerSpec.components.schemas.RobotTeleopHelpRequest;
   assert.ok(schema);
   assert.ok(schema.required.includes('message'));
+  assert.ok(schema.required.includes('metadata'));
   assert.ok(schema.properties.metadata.properties.situation_report);
+  assert.ok(schema.properties.metadata.properties.dataset_id);
+  assert.ok(schema.properties.metadata.properties.kyr_session_id);
+  assert.ok(schema.properties.metadata.properties.kyr_robot_id);
   assert.ok(schema.properties.metadata.properties.kyr_peaq_context);
 });
 

@@ -1,3 +1,5 @@
+/* Legacy standalone CSS; /client/index.html loads /styles.css (Tailwind). Client demo cards live in src/styles/input.css. */
+
 * {
   box-sizing: border-box;
   font-family: "Segoe UI", Roboto, sans-serif;

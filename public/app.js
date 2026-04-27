@@ -84,6 +84,9 @@ const api = {
 };
 
 const setMessage = (element, message, type) => {
+  if (!element) {
+    return;
+  }
   element.textContent = message;
   element.className = `message ${type ?? ''}`;
 };
@@ -242,21 +245,38 @@ const updateMapMarkers = (robots = []) => {
 };
 
 const renderRobots = async () => {
+  if (!robotsList) {
+    return;
+  }
   try {
     const data = await api.listRobots();
-    if (!data?.robots?.length) {
+    const list = data?.robots || [];
+    const statRobotsEl = document.getElementById('stat-robots');
+    if (statRobotsEl) {
+      statRobotsEl.textContent = String(list.length);
+    }
+    let commandCount = 0;
+    list.forEach((robot) => {
+      const methods = robot.status?.availableMethods || [];
+      commandCount += methods.length;
+    });
+    const statCommandsEl = document.getElementById('stat-commands');
+    if (statCommandsEl) {
+      statCommandsEl.textContent = String(commandCount);
+    }
+    if (!list.length) {
       robotsList.innerHTML = '<p class="robots-list-empty">No robots registered yet.</p>';
       updateMapMarkers([]);
       return;
     }
-    robotsList.innerHTML = data.robots.map(renderRobot).join('');
-    updateMapMarkers(data.robots);
+    robotsList.innerHTML = list.map(renderRobot).join('');
+    updateMapMarkers(list);
   } catch (error) {
     robotsList.innerHTML = `<p class="message error">${error.message}</p>`;
   }
 };
 
-robotsList.addEventListener('click', async (event) => {
+robotsList?.addEventListener('click', async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
     return;
@@ -280,7 +300,10 @@ robotsList.addEventListener('click', async (event) => {
   }
 });
 
-refreshAllButton.addEventListener('click', async () => {
+refreshAllButton?.addEventListener('click', async () => {
+  if (!refreshAllButton) {
+    return;
+  }
   refreshAllButton.disabled = true;
   refreshAllButton.textContent = 'Refreshing...';
   try {
@@ -293,12 +316,15 @@ refreshAllButton.addEventListener('click', async () => {
     setMessage(robotFormMessage, error.message, 'error');
   } finally {
     refreshAllButton.disabled = false;
-    refreshAllButton.textContent = 'Refresh All';
+    refreshAllButton.textContent = 'Refresh Data';
   }
 });
 
-robotForm.addEventListener('submit', async (event) => {
+robotForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!robotForm) {
+    return;
+  }
   const formData = new FormData(robotForm);
   const rosbridgePortRaw = formData.get('rosbridgePort');
   const teleopSecretRaw = formData.get('teleopSecret');
@@ -339,6 +365,9 @@ robotForm.addEventListener('submit', async (event) => {
 
 // Load and render available actions
 const renderAvailableActions = async () => {
+  if (!availableActionsEl) {
+    return;
+  }
   try {
     const { robots } = await api.listRobots();
     const actionsMap = new Map();
@@ -388,12 +417,18 @@ const renderAvailableActions = async () => {
 };
 
 // AI Agent form handling
-llmProviderSelect.addEventListener('change', (e) => {
+llmProviderSelect?.addEventListener('change', (e) => {
+  if (!llmConfigDiv) {
+    return;
+  }
   llmConfigDiv.classList.toggle('hidden', !e.target.value);
 });
 
-aiAgentForm.addEventListener('submit', async (event) => {
+aiAgentForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!aiAgentForm) {
+    return;
+  }
   const formData = new FormData(aiAgentForm);
   
   const config = {
@@ -420,22 +455,29 @@ const loadAiAgentConfig = async () => {
   try {
     const config = await api.getAiAgentConfig();
     if (config) {
-      document.getElementById('ai-strategy').value = config.strategy || 'smart';
-      if (config.n8nWebhookUrl) {
-        document.querySelector('[name="n8nWebhookUrl"]').value = config.n8nWebhookUrl;
+      const strategyEl = document.getElementById('ai-strategy');
+      if (strategyEl) {
+        strategyEl.value = config.strategy || 'smart';
       }
-      if (config.llm) {
+      const n8nEl = document.querySelector('[name="n8nWebhookUrl"]');
+      if (n8nEl && config.n8nWebhookUrl) {
+        n8nEl.value = config.n8nWebhookUrl;
+      }
+      if (config.llm && llmProviderSelect) {
         llmProviderSelect.value = config.llm.provider || '';
-        if (config.llm.provider) {
+        if (config.llm.provider && llmConfigDiv) {
           llmConfigDiv.classList.remove('hidden');
-          if (config.llm.apiKey) {
-            document.querySelector('[name="llmApiKey"]').value = config.llm.apiKey;
+          const keyEl = document.querySelector('[name="llmApiKey"]');
+          if (keyEl && config.llm.apiKey) {
+            keyEl.value = config.llm.apiKey;
           }
-          if (config.llm.endpoint) {
-            document.querySelector('[name="llmEndpoint"]').value = config.llm.endpoint;
+          const endpointEl = document.querySelector('[name="llmEndpoint"]');
+          if (endpointEl && config.llm.endpoint) {
+            endpointEl.value = config.llm.endpoint;
           }
-          if (config.llm.model) {
-            document.querySelector('[name="llmModel"]').value = config.llm.model;
+          const modelEl = document.querySelector('[name="llmModel"]');
+          if (modelEl && config.llm.model) {
+            modelEl.value = config.llm.model;
           }
         }
       }
@@ -505,7 +547,9 @@ document.getElementById('admin-logout')?.addEventListener('click', async () => {
   window.location.href = '/ui/login.html';
 });
 
-setInterval(renderRobots, 15000);
+if (robotsList) {
+  setInterval(renderRobots, 15000);
+}
 initMap();
 renderRobots();
 renderAvailableActions();

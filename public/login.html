@@ -3,57 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin login — Task-router-x402</title>
-    <link rel="stylesheet" href="/ui/styles.css" />
-    <style>
-      .login-wrap {
-        max-width: 420px;
-        margin: 3rem auto;
-        padding: 1.5rem;
-      }
-      .login-wrap h1 {
-        font-size: 1.25rem;
-        margin-bottom: 0.5rem;
-      }
-      .login-wrap .hint {
-        opacity: 0.85;
-        font-size: 0.9rem;
-        margin-bottom: 1.25rem;
-      }
-      .login-wrap label {
-        display: block;
-        margin-bottom: 1rem;
-      }
-      .login-wrap input[type='text'],
-      .login-wrap input[type='password'] {
-        width: 100%;
-        margin-top: 0.35rem;
-        box-sizing: border-box;
-      }
-      .login-wrap .error {
-        color: #c62828;
-        margin-bottom: 1rem;
-        min-height: 1.25rem;
-      }
-    </style>
+    <title>Admin Login — Homebrew Robotics · Task Router</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
-    <main class="login-wrap">
-      <h1>Admin panel</h1>
-      <p class="hint">Sign in with <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> from the server environment.</p>
-      <p id="login-error" class="error" role="alert"></p>
-      <form id="admin-login-form">
-        <label>
-          Username
-          <input name="username" type="text" autocomplete="username" required />
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" autocomplete="current-password" required />
-        </label>
-        <button type="submit">Sign in</button>
-      </form>
+  <body class="min-h-screen flex flex-col bg-slate-900">
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+          <a href="/client" class="flex items-center gap-2 hover:opacity-90 transition-opacity no-underline">
+            <img src="/brand/hbr-mark.png" alt="Homebrew Robotics" width="32" height="32" class="h-8 w-8 object-contain shrink-0" />
+            <div class="flex flex-col leading-tight text-left">
+              <span class="text-lg font-bold text-white tracking-tight">Homebrew Robotics</span>
+              <span class="text-xs text-slate-400">Task Router — Admin</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="flex-grow flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
+          <p class="text-slate-400 text-sm">Sign in with server environment credentials.</p>
+        </div>
+
+        <section class="panel border-indigo-500/20 shadow-xl shadow-indigo-500/5">
+          <form id="admin-login-form" class="space-y-5">
+            <div>
+              <label class="label-text">Username</label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                </div>
+                <input name="username" type="text" autocomplete="username" required class="input-field pl-10" placeholder="admin" />
+              </div>
+            </div>
+            
+            <div>
+              <label class="label-text">Password</label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                </div>
+                <input name="password" type="password" autocomplete="current-password" required class="input-field pl-10" placeholder="••••••••" />
+              </div>
+            </div>
+            
+            <div id="login-error" class="hidden text-sm text-red-400 bg-red-400/10 border border-red-400/20 p-3 rounded-md mt-4"></div>
+            
+            <button type="submit" class="btn-primary w-full py-2.5 mt-2">Authenticate</button>
+          </form>
+          
+          <div class="mt-6 text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+            <code class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">ADMIN_USERNAME</code> and <code class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">ADMIN_PASSWORD</code>
+          </div>
+        </section>
+      </div>
     </main>
+
     <script>
       (function () {
         function safeNext(raw) {
@@ -70,6 +80,13 @@
         form.addEventListener('submit', function (e) {
           e.preventDefault();
           errEl.textContent = '';
+          errEl.classList.add('hidden');
+          
+          var btn = form.querySelector('button[type="submit"]');
+          var origHtml = btn.innerHTML;
+          btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Authenticating...';
+          btn.disabled = true;
+
           var fd = new FormData(form);
           var username = String(fd.get('username') || '');
           var password = String(fd.get('password') || '');
@@ -88,7 +105,10 @@
               window.location.assign(next);
             })
             .catch(function (err) {
-              errEl.textContent = err.message || 'Login failed';
+              errEl.textContent = err.message || 'Login failed. Please check credentials in env vars.';
+              errEl.classList.remove('hidden');
+              btn.innerHTML = origHtml;
+              btn.disabled = false;
             });
         });
       })();

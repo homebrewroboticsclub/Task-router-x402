@@ -5,9 +5,15 @@
   "scripts": {
     "start": "node ./src/index.js",
     "dev": "nodemon ./src/index.js",
+    "dev:up": "bash scripts/dev-local-up.sh",
+    "rebuild:local": "bash scripts/rebuild-local.sh",
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles.css",
+    "build:brand": "node scripts/build-brand-assets.js",
+    "pack:kyr-vr-handoff": "mkdir -p TEMP/kyr-handoff TEMP/vr-handoff && cp docs/ROBOT_TELEOP_KYR_RAID_GRANT.md docs/ROBOT_INTEGRATION_STABILITY.md docs/RAID_APP_TELEOP_HELP_FULL_CYCLE_X402_SPEC.md docs/TELEOP_FETCH.md TEMP/kyr-handoff/ && cp docs/VR_TELEOP_HELP_CLIENT.md docs/VR_TELEOP_SESSION_COMPLETION.md TEMP/vr-handoff/",
+    "watch:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles.css --watch",
     "peaq:onboard": "node scripts/peaqOnboardMachine.js",
     "peaq:faucet": "node scripts/peaqFaucetRequest.js",
-    "test": "node --test test/teleoperator-repository.test.js test/teleoperator-http.test.js test/teleop-help-payload.test.js test/teleop-help-http.test.js test/teleop-session-grant-service.test.js test/teleop-dataset-proxy-http.test.js test/robot-registry-db.test.js test/teleop-rosbridge-forward.test.js test/teleop-ws-connect.test.js test/teleop-config.test.js test/cors-api.test.js test/admin-http.test.js test/robots-http.test.js test/robot-operator-sync.test.js test/openapi-servers.test.js test/sprint-inventory-openapi.test.js test/env-bom.test.js test/no-cyrillic-in-repo.test.js test/peaq-onboard-machine.test.js test/peaq-faucet-request.test.js test/peaq-claim-service.test.js"
+    "test": "node --test test/teleoperator-repository.test.js test/teleoperator-http.test.js test/teleop-help-payload.test.js test/teleop-help-http.test.js test/teleop-session-grant-service.test.js test/teleop-dataset-proxy-http.test.js test/robot-registry-db.test.js test/teleop-rosbridge-forward.test.js test/teleop-ws-connect.test.js test/teleop-config.test.js test/cors-api.test.js test/public-styles-route.test.js test/public-brand-routes.test.js test/admin-http.test.js test/robots-http.test.js test/robot-operator-sync.test.js test/data-node-sync-provision.test.js test/robot-provision-sync.test.js test/services-registration-rotate.test.js test/openapi-servers.test.js test/sprint-inventory-openapi.test.js test/env-bom.test.js test/no-cyrillic-in-repo.test.js test/peaq-onboard-machine.test.js test/peaq-faucet-request.test.js test/peaq-claim-service.test.js"
   },
   "keywords": [
     "x402",
@@ -30,13 +36,20 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.14.1",
+    "qrcode": "^1.5.4",
+    "qrcode.react": "^4.2.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.27",
     "nodemon": "^3.1.10",
-    "supertest": "^7.1.0"
+    "png-to-ico": "^2.0.0",
+    "postcss": "^8.5.9",
+    "sharp": "^0.33.5",
+    "supertest": "^7.1.0",
+    "tailwindcss": "^3.4.19"
   }
 }

@@ -35,6 +35,31 @@ async function apiJson(path, options = {}) {
   return data;
 }
 
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function correlationMetaLines(meta) {
+  if (!meta || typeof meta !== 'object') {
+    return '';
+  }
+  const rows = [];
+  if (meta.dataset_id) {
+    rows.push(`<div><strong>Dataset ID</strong> <code>${escapeHtml(String(meta.dataset_id))}</code></div>`);
+  }
+  if (meta.kyr_session_id) {
+    rows.push(`<div><strong>KYR session</strong> <code>${escapeHtml(String(meta.kyr_session_id))}</code></div>`);
+  }
+  if (meta.kyr_robot_id) {
+    rows.push(`<div><strong>KYR robot ID</strong> <code>${escapeHtml(String(meta.kyr_robot_id))}</code></div>`);
+  }
+  return rows.join('');
+}
+
 function renderHelpList(container, items) {
   if (!items.length) {
     container.innerHTML = '<p class="hint">No open help requests.</p>';
@@ -47,6 +72,7 @@ function renderHelpList(container, items) {
       <div><strong>Robot</strong> <code>${h.robotId}</code></div>
       <div><strong>Created</strong> ${new Date(h.createdAt).toLocaleString()}</div>
       ${h.payload?.message ? `<div>${escapeHtml(String(h.payload.message))}</div>` : ''}
+      ${correlationMetaLines(h.payload?.metadata)}
       <button type="button" class="btn-accept" data-id="${h.id}">Accept</button>
     </article>`,
     )
@@ -55,14 +81,6 @@ function renderHelpList(container, items) {
   container.querySelectorAll('.btn-accept').forEach((btn) => {
     btn.addEventListener('click', () => acceptHelp(btn.getAttribute('data-id')));
   });
-}
-
-function escapeHtml(s) {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 const helpListEl = document.getElementById('help-list');

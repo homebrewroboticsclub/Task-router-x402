@@ -1,6 +1,6 @@
 # RAID App — `POST …/teleop/help` extension (`situation_report` field)
 
-**Index:** [README.md](../README.md#documentation-index) lists all specs.
+**Index:** [README.md](../README.md#documentation-index) and [AGENTS.md](../AGENTS.md) list all specs.
 
 **Audience:** Task-router-x402 developers (`task-router-x402` or equivalent).  
 **On-robot source:** `rospy_x402` package, `EscalationManager._request_grant_from_raid` → HTTP `POST` to the URL below.
@@ -48,11 +48,13 @@ The robot sends an object like:
 
 Service `rospy_x402/RequestHelp` (`/x402/request_help`): `situation_report` is mirrored to `metadata.situation_report` in the HTTP request.
 
-Robot documentation: [RAID_INTEGRATION.md](RAID_INTEGRATION.md).
+Robot documentation (handoff bundle): [TASK_ROUTER_FULL_SINC/RAID_INTEGRATION.md](TASK_ROUTER_FULL_SINC/RAID_INTEGRATION.md).
 
 ## Implementation in Task-router-x402 (`task-router-x402`)
 
-- Parse/normalize: [`src/utils/teleopHelpPayload.js`](src/utils/teleopHelpPayload.js), route [`src/routes/teleopHelp.js`](src/routes/teleopHelp.js).
+- Parse/normalize: [`src/utils/teleopHelpPayload.js`](../src/utils/teleopHelpPayload.js), route [`src/routes/teleopHelp.js`](../src/routes/teleopHelp.js).
 - **`situation_report`**: stored in JSON **`payload`** on the DB row; returned from **`GET /api/teleoperator/help-requests`**, **`POST …/teleop/help`**, and WS event **`help_request`** (`data.payload`).
 - Length limit: **65536** UTF-8 bytes; overflow truncates on code-point boundary with a warning log.
-- For VR / Quest / Unity operator clients see [docs/VR_TELEOP_HELP_CLIENT.md](docs/VR_TELEOP_HELP_CLIENT.md).
+- For VR / Quest / Unity operator clients see [VR_TELEOP_HELP_CLIENT.md](VR_TELEOP_HELP_CLIENT.md).
+
+Optional **`metadata.dataset_id`**, **`kyr_session_id`**, and **`kyr_robot_id`** (DATA_NODE / fleet correlation) are documented in [RAID_APP_DATA_NODE_CORRELATION_SPEC.md](RAID_APP_DATA_NODE_CORRELATION_SPEC.md); the server normalizes them to strings and truncates each at **1024** UTF-8 bytes.

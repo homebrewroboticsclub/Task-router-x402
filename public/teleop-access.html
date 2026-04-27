@@ -3,63 +3,141 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Teleop access — Task-router-x402</title>
-    <link rel="stylesheet" href="/ui/styles.css" />
+    <title>Teleop Access — Homebrew Robotics · Task Router</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
-    <header>
-      <div class="admin-header-row">
-        <h1>Teleop: operators and robots</h1>
-        <nav class="admin-nav-links">
-          <a href="/ui/">Control panel</a>
-        </nav>
-        <button id="admin-logout" type="button" class="admin-logout-btn">Log out</button>
+  <body class="min-h-screen flex flex-col bg-slate-900">
+    <!-- Top Navigation Bar -->
+    <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16 items-center">
+          <a href="/client" class="flex items-center gap-2 hover:opacity-90 transition-opacity no-underline">
+            <img src="/brand/hbr-mark.png" alt="Homebrew Robotics" width="32" height="32" class="h-8 w-8 object-contain shrink-0" />
+            <div class="flex flex-col leading-tight text-left">
+              <span class="text-lg font-bold text-white tracking-tight">Homebrew Robotics</span>
+              <span class="text-xs text-slate-400">Task Router — Teleop</span>
+            </div>
+          </a>
+          <div class="flex gap-4 items-center">
+            <a href="/ui/" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">Dashboard</a>
+            <a href="/ui/services-registration.html" class="text-sm font-medium text-slate-300 hover:text-white transition-colors">Services</a>
+            <button type="button" id="admin-logout" class="btn-secondary text-xs px-3 py-1.5 h-8 ml-2">Log Out</button>
+          </div>
+        </div>
       </div>
-      <p>
-        Grant or revoke which teleoperators may accept help requests per robot. If a robot has <strong>no</strong> grants,
-        any logged-in operator may still accept (backward compatible). If it has <strong>at least one</strong> grant, only
-        listed operators may accept.
-      </p>
-    </header>
+    </nav>
 
-    <main>
-      <section class="panel">
-        <h2>Active grants</h2>
-        <div id="grants-list" class="robots-list"><p class="loading">Loading…</p></div>
-      </section>
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow">
+      
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-white">Operator Permissions</h1>
+        <p class="text-slate-400 text-sm mt-1">Manage which operators can respond to help requests for specific robots.</p>
+      </div>
 
-      <section class="panel">
-        <h2>Add grant</h2>
-        <form id="grant-form">
-          <label>
-            Operator
-            <select name="teleoperatorId" id="grant-op" required></select>
-          </label>
-          <label>
-            Robot
-            <select name="robotId" id="grant-robot" required></select>
-          </label>
-          <button type="submit">Grant access</button>
-        </form>
-        <div id="grant-form-message" class="message"></div>
-      </section>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Left Column: Active Grants -->
+        <section class="panel border-indigo-500/20 shadow-lg shadow-indigo-500/5 flex flex-col max-h-[600px]">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 border-b border-slate-700/50 pb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            Active Access Grants
+          </h2>
+          
+          <div id="grants-list" class="flex-grow overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+            <div class="flex items-center justify-center h-40 text-slate-500">
+              <svg class="animate-spin h-6 w-6 text-indigo-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              Loading grants...
+            </div>
+          </div>
+        </section>
 
-      <section class="panel">
-        <h2>Push allowlist to robot</h2>
-        <p class="panel-description">
-          Calls the robot’s <code>operatorRegistryUrl</code> with active operator IDs. Contract:
-          <code>docs/ROBOT_OPERATOR_SYNC.md</code> in the repo; OpenAPI tag <strong>Admin</strong> for
-          <code>POST /api/admin/robots/&#123;robotId&#125;/sync-operator-allowlist</code>.
-        </p>
-        <form id="sync-form">
-          <label>
-            Robot
-            <select name="robotId" id="sync-robot" required></select>
-          </label>
-          <button type="submit">Sync allowlist</button>
-        </form>
-        <div id="sync-message" class="message"></div>
-      </section>
+        <!-- Right Column: Forms -->
+        <div class="space-y-6">
+          
+          <!-- Add Grant -->
+          <section class="panel">
+            <h2 class="text-lg font-semibold mb-4">Grant Access</h2>
+            <form id="grant-form" class="space-y-4">
+              <div>
+                <label class="label-text">Select Operator</label>
+                <select name="teleoperatorId" id="grant-op" required class="input-field"></select>
+              </div>
+              <div>
+                <label class="label-text">Target Robot</label>
+                <select name="robotId" id="grant-robot" required class="input-field"></select>
+              </div>
+              <button type="submit" class="btn-primary w-full mt-2">Grant Permission</button>
+            </form>
+            <div id="grant-form-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+          </section>
+
+          <!-- Push Settings -->
+          <details class="group bg-slate-800/30 rounded-xl border border-slate-700/50">
+            <summary class="text-sm font-semibold text-slate-300 cursor-pointer p-4 list-none flex justify-between items-center">
+              Force Sync Allowlist (Push to Robot)
+              <span class="transition group-open:rotate-180">
+                <svg fill="none" height="20" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="20"><path d="M6 9l6 6 6-6"></path></svg>
+              </span>
+            </summary>
+            
+            <div class="p-4 pt-0 border-t border-slate-700/50">
+              <form id="sync-form" class="space-y-4 mt-4">
+                <div>
+                  <label class="label-text text-xs">Target Robot</label>
+                  <select name="robotId" id="sync-robot" required class="input-field text-sm py-1.5"></select>
+                </div>
+                
+                <div class="space-y-2">
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 text-sm">
+                    <input type="checkbox" name="pushAllowlist" id="sync-push-allow" checked class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                    <span>Push Operator Allowlist</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-slate-300 text-sm">
+                    <input type="checkbox" name="pushDataNodeSync" id="sync-push-dn" checked class="rounded border-slate-700 bg-slate-900 text-indigo-500" />
+                    <span>Push DATA_NODE Sync Settings</span>
+                  </label>
+                </div>
+                
+                <button type="submit" class="btn-secondary w-full text-sm py-1.5">Trigger Synchronization</button>
+              </form>
+              <div id="sync-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+            </div>
+          </details>
+
+          <!-- Advanced: Node Override -->
+          <details class="group bg-slate-800/30 rounded-xl border border-slate-700/50">
+            <summary class="text-sm font-semibold text-slate-300 cursor-pointer p-4 list-none flex justify-between items-center">
+              Per-robot DATA_NODE Override
+              <span class="transition group-open:rotate-180">
+                <svg fill="none" height="20" shape-rendering="geometricPrecision" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24" width="20"><path d="M6 9l6 6 6-6"></path></svg>
+              </span>
+            </summary>
+            
+            <div class="p-4 pt-0 border-t border-slate-700/50">
+              <p class="text-xs text-slate-400 mt-2 mb-4">JSON object overlay on fleet settings (e.g. {"baseUrl":"..."}). Leave empty to clear.</p>
+              <form id="override-form" class="space-y-3">
+                <div>
+                  <label class="label-text text-xs">Robot</label>
+                  <select name="robotId" id="override-robot" required class="input-field text-sm py-1.5"></select>
+                </div>
+                <div>
+                  <textarea name="json" id="override-json" rows="5" class="input-field font-mono text-xs p-3 leading-relaxed" placeholder='{"baseUrl":"https://data.example.com"}'></textarea>
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" id="override-clear" class="btn-secondary flex-1 text-sm py-1.5">Clear</button>
+                  <button type="submit" class="btn-primary flex-1 text-sm py-1.5">Save Override</button>
+                </div>
+              </form>
+              <div id="override-message" class="hidden mt-3 p-2 rounded text-sm text-center"></div>
+            </div>
+          </details>
+        </div>
+      </div>
     </main>
 
     <script>
@@ -96,30 +174,57 @@
         revoke(tid, rid) {
           return this.request(`/api/admin/teleoperator-grants/${tid}/${rid}`, { method: 'DELETE' });
         },
-        syncRobot(robotId) {
-          return this.request(`/api/admin/robots/${robotId}/sync-operator-allowlist`, { method: 'POST' });
+        syncRobot(robotId, body) {
+          return this.request(`/api/admin/robots/${robotId}/sync-operator-allowlist`, {
+            method: 'POST',
+            body: body || {},
+          });
+        },
+        putRobot(robotId, body) {
+          return this.request(`/api/admin/robots/${robotId}`, { method: 'PUT', body });
         },
       };
 
       function setMessage(el, text, kind) {
         el.textContent = text;
-        el.className = 'message' + (kind ? ' ' + kind : '');
+        el.classList.remove('hidden', 'bg-green-500/10', 'text-green-400', 'border-green-500/20', 'bg-red-500/10', 'text-red-400', 'border-red-500/20');
+        if (kind === 'success') {
+          el.classList.add('block', 'bg-green-500/10', 'text-green-400', 'border', 'border-green-500/20');
+        } else if (kind === 'error') {
+          el.classList.add('block', 'bg-red-500/10', 'text-red-400', 'border', 'border-red-500/20');
+        }
+        setTimeout(() => el.classList.add('hidden'), 5000);
       }
+
+      let robotsCache = [];
 
       async function loadSelects() {
         const [{ teleoperators }, { robots }] = await Promise.all([api.listOperators(), api.listRobots()]);
+        robotsCache = robots || [];
         const opSel = document.getElementById('grant-op');
         const rSel = document.getElementById('grant-robot');
         const syncSel = document.getElementById('sync-robot');
+        const overrideSel = document.getElementById('override-robot');
         const ops = teleoperators || [];
         opSel.innerHTML = ops.length
           ? ops.map((u) => `<option value="${u.id}">${u.login} (${u.id.slice(0, 8)}…)</option>`).join('')
-          : '<option value="" disabled selected>No accounts yet — register at /teleoperator first</option>';
-        const robotOpts = (robots || [])
+          : '<option value="" disabled selected>No accounts yet</option>';
+        const robotOpts = robotsCache
           .map((r) => `<option value="${r.id}">${r.name} — ${r.host}:${r.port}</option>`)
           .join('');
-        rSel.innerHTML = robotOpts;
+        rSel.innerHTML = robotOpts || '<option value="" disabled selected>No robots available</option>';
         syncSel.innerHTML = robotOpts;
+        overrideSel.innerHTML = robotOpts;
+      }
+
+      function fillOverrideJsonForRobot(robotId) {
+        const ta = document.getElementById('override-json');
+        const r = robotsCache.find((x) => x.id === robotId);
+        if (!r || !r.dataNodeSyncOverride) {
+          ta.value = '';
+          return;
+        }
+        ta.value = JSON.stringify(r.dataNodeSyncOverride, null, 2);
       }
 
       async function renderGrants() {
@@ -127,23 +232,28 @@
         try {
           const { grants } = await api.listGrants();
           if (!grants?.length) {
-            el.innerHTML = '<p class="robots-list-empty">No active grants.</p>';
+            el.innerHTML = '<div class="text-center text-slate-500 py-8 text-sm bg-slate-800/30 rounded-lg border border-dashed border-slate-700">No active access grants found. All operators have default access.</div>';
             return;
           }
           el.innerHTML = grants
             .map(
               (g) => `
-            <div class="robot-card">
+            <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 flex justify-between items-center group hover:border-indigo-500/50 transition-colors">
               <div>
-                <strong>${g.teleoperatorLogin}</strong>
-                <span class="muted"> → robot ${g.robotId.slice(0, 8)}…</span>
+                <div class="text-sm font-medium text-slate-200">${g.teleoperatorLogin}</div>
+                <div class="text-xs text-slate-500 font-mono mt-0.5 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                  ${g.robotId.slice(0, 12)}…
+                </div>
               </div>
-              <button type="button" data-revoke data-tid="${g.teleoperatorId}" data-rid="${g.robotId}">Revoke</button>
+              <button type="button" class="btn-secondary text-xs h-8 px-3 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-300" data-revoke data-tid="${g.teleoperatorId}" data-rid="${g.robotId}">
+                Revoke
+              </button>
             </div>`,
             )
             .join('');
         } catch (e) {
-          el.innerHTML = `<p class="message error">${e.message}</p>`;
+          el.innerHTML = `<div class="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded text-sm">${e.message}</div>`;
         }
       }
 
@@ -151,26 +261,44 @@
         ev.preventDefault();
         const msg = document.getElementById('grant-form-message');
         const fd = new FormData(ev.target);
+        
+        if(!fd.get('teleoperatorId') || !fd.get('robotId')) return;
+        
+        const btn = ev.target.querySelector('button[type="submit"]');
+        const origText = btn.textContent;
+        btn.textContent = "Granting...";
+        btn.disabled = true;
+        
         try {
           await api.grant({
             teleoperatorId: fd.get('teleoperatorId'),
             robotId: fd.get('robotId'),
           });
-          setMessage(msg, 'Grant added', 'success');
+          setMessage(msg, 'Access granted successfully', 'success');
           await renderGrants();
         } catch (e) {
           setMessage(msg, e.message, 'error');
+        } finally {
+          btn.textContent = origText;
+          btn.disabled = false;
         }
       });
 
       document.getElementById('grants-list').addEventListener('click', async (ev) => {
         const btn = ev.target.closest('[data-revoke]');
         if (!btn) return;
+        
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '...';
+        btn.disabled = true;
+        
         try {
           await api.revoke(btn.dataset.tid, btn.dataset.rid);
           await renderGrants();
         } catch (e) {
-          alert(e.message);
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+          alert(`Error: ${e.message}`);
         }
       });
 
@@ -178,9 +306,67 @@
         ev.preventDefault();
         const msg = document.getElementById('sync-message');
         const fd = new FormData(ev.target);
+        const pushAllowlist = document.getElementById('sync-push-allow').checked;
+        const pushDataNodeSync = document.getElementById('sync-push-dn').checked;
+        
+        if(!fd.get('robotId')) return;
+        
+        const btn = ev.target.querySelector('button[type="submit"]');
+        const origText = btn.textContent;
+        btn.textContent = "Pushing...";
+        btn.disabled = true;
+        
         try {
-          const res = await api.syncRobot(fd.get('robotId'));
-          setMessage(msg, JSON.stringify(res), res.skipped ? '' : 'success');
+          const res = await api.syncRobot(fd.get('robotId'), { pushAllowlist, pushDataNodeSync });
+          setMessage(msg, res.skipped ? 'Skipped (no changes)' : 'Successfully pushed to robot', res.skipped ? '' : 'success');
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        } finally {
+          btn.textContent = origText;
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById('override-robot').addEventListener('change', (ev) => {
+        fillOverrideJsonForRobot(ev.target.value);
+      });
+
+      document.getElementById('override-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const msg = document.getElementById('override-message');
+        const robotId = document.getElementById('override-robot').value;
+        const raw = document.getElementById('override-json').value.trim();
+        
+        if(!robotId) return;
+        
+        try {
+          let dataNodeSyncOverride = null;
+          if (raw !== '') {
+            dataNodeSyncOverride = JSON.parse(raw);
+            if (dataNodeSyncOverride === null || typeof dataNodeSyncOverride !== 'object' || Array.isArray(dataNodeSyncOverride)) {
+              throw new Error('Override must be a JSON object');
+            }
+          }
+          await api.putRobot(robotId, { dataNodeSyncOverride });
+          setMessage(msg, 'Override saved successfully', 'success');
+          await loadSelects();
+          fillOverrideJsonForRobot(robotId);
+        } catch (e) {
+          setMessage(msg, e.message, 'error');
+        }
+      });
+
+      document.getElementById('override-clear').addEventListener('click', async () => {
+        const msg = document.getElementById('override-message');
+        const robotId = document.getElementById('override-robot').value;
+        
+        if(!robotId) return;
+        
+        try {
+          await api.putRobot(robotId, { dataNodeSyncOverride: null });
+          document.getElementById('override-json').value = '';
+          setMessage(msg, 'Override cleared', 'success');
+          await loadSelects();
         } catch (e) {
           setMessage(msg, e.message, 'error');
         }
@@ -194,11 +380,27 @@
       (async () => {
         try {
           await loadSelects();
+          const or = document.getElementById('override-robot');
+          if (or && or.value) fillOverrideJsonForRobot(or.value);
           await renderGrants();
         } catch (e) {
-          document.getElementById('grants-list').innerHTML = `<p class="message error">${e.message}</p>`;
+          document.getElementById('grants-list').innerHTML = `<div class="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded text-sm text-center">${e.message}</div>`;
         }
       })();
     </script>
+    <style>
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-slate-900 rounded-full;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-slate-700 rounded-full;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-slate-600;
+      }
+    </style>
   </body>
 </html>

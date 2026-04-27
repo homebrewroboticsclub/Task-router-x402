@@ -136,6 +136,6 @@ If none of these are set, the **`operatorSessionMeta` part is omitted** entirely
 
 ## 5. Related docs
 
-- [TELEOP_DATAS.md](TELEOP_DATAS.md) — full headset upload contract and frames.
-- [HBR.md](HBR.md) — `.hbr` layout.
+- Full headset upload contract and frames — `br-vr-dev-sinc` product docs (not vendored here).
+- `.hbr` archive layout — `br-vr-dev-sinc` / HBR documentation (not vendored here).
 - [RAID_APP_DATASET_PROXY_SPEC.md](RAID_APP_DATASET_PROXY_SPEC.md) — HTTPS proxy to the same upload API (transparent body).

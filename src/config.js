@@ -213,6 +213,53 @@ const loadConfig = (argv = []) => {
         return t || null;
       })(),
     },
+    /** Fleet defaults merged with per-robot dataNodeSyncOverride; pushed to robot with allowlist (TASK_ROUTER_FULL_SINC). */
+    dataNodeSyncFleet: (() => {
+      const baseUrl = (process.env.DATA_NODE_SYNC_BASE_URL || '').trim();
+      const peRaw = process.env.DATA_NODE_SYNC_PROVISION_ENABLED;
+      let provisionEnabled = false;
+      if (peRaw !== undefined && String(peRaw).trim() !== '') {
+        provisionEnabled = parseEnvBool(peRaw, false);
+      } else {
+        provisionEnabled = baseUrl.length > 0;
+      }
+      const authHeaderValue = (() => {
+        const v = process.env.DATA_NODE_SYNC_AUTH_HEADER_VALUE;
+        if (v === undefined || v === null) return null;
+        const t = String(v).trim();
+        return t || null;
+      })();
+      const batchPathRaw = (process.env.DATA_NODE_SYNC_BATCH_PATH || '/v1/ingest/robot-events').trim();
+      return {
+        provisionEnabled,
+        baseUrl: baseUrl || null,
+        batchPath: batchPathRaw.startsWith('/') ? batchPathRaw : `/${batchPathRaw}`,
+        enabled: parseEnvBool(process.env.DATA_NODE_SYNC_ENABLED, false),
+        intervalSec: toNumber(process.env.DATA_NODE_SYNC_INTERVAL_SEC, 300),
+        authHeaderName: (process.env.DATA_NODE_SYNC_AUTH_HEADER_NAME || 'Authorization').trim() || 'Authorization',
+        authHeaderValue,
+        includeDashboardEvents: parseEnvBool(process.env.DATA_NODE_SYNC_INCLUDE_DASHBOARD, true),
+        includeAuditEvents: parseEnvBool(process.env.DATA_NODE_SYNC_INCLUDE_AUDIT, true),
+        includeStateUsbSnapshot: parseEnvBool(process.env.DATA_NODE_SYNC_INCLUDE_STATE_USB, true),
+        includeKyrIncidents: parseEnvBool(process.env.DATA_NODE_SYNC_INCLUDE_KYR_INCIDENTS, true),
+      };
+    })(),
+    /** Optional POST help/incident payload to DATA_NODE (DATA_NODE_INGEST §6); off by default. */
+    dataNodeIncidentRelay: (() => {
+      const url = (process.env.DATA_NODE_INCIDENT_RELAY_URL || '').trim();
+      return {
+        enabled: parseEnvBool(process.env.DATA_NODE_INCIDENT_RELAY_ENABLED, false) && url.length > 0,
+        url,
+        method: ((process.env.DATA_NODE_INCIDENT_RELAY_METHOD || 'POST').trim() || 'POST').toUpperCase(),
+        authHeader: (process.env.DATA_NODE_INCIDENT_RELAY_AUTH_HEADER || '').trim() || null,
+        authValue: (() => {
+          const v = process.env.DATA_NODE_INCIDENT_RELAY_AUTH_VALUE;
+          if (v === undefined || v === null) return null;
+          const t = String(v).trim();
+          return t || null;
+        })(),
+      };
+    })(),
     mdns: {
       enabled: parseEnvBool(process.env.MDNS_ENABLED, false),
       /** mDNS instance name → other hosts resolve as `<name>.local` (bonjour-service) */

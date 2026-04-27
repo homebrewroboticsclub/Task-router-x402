@@ -6,9 +6,10 @@ const packageJson = require('../../package.json');
 const swaggerDefinition = {
   openapi: '3.0.1',
   info: {
-    title: 'Task-router-x402 API',
+    title: 'Homebrew Robotics Task Router (x402) API',
     version: packageJson.version || '1.0.0',
-    description: 'REST API for managing robots and orchestrating x402-enabled commands.',
+    description:
+      'REST API for the Homebrew Robotics Task Router service: robot registry, x402-enabled commands, and related teleoperator flows.',
   },
   tags: [
     { name: 'Health', description: 'Service diagnostics and readiness checks.' },
@@ -23,7 +24,7 @@ const swaggerDefinition = {
     {
       name: 'Teleop',
       description:
-        'Robots call `POST /api/robots/{robotId}/teleop/help` with **`X-Robot-Teleop-Secret`** (per-robot secret), not the operator JWT. Body: required string **`message`**; **`metadata`** with **`task_id`**, **`error_context`**, optional **`situation_report`**, optional opaque **`kyr_peaq_context`** (max 64 KiB JSON; see **RobotTeleopHelpRequest**). Response includes top-level **`id`** (UUID of the help request) and optionally **`peaq_claim`** when **PEAQ_*** env is configured. If **`sdk.did.read`** fails, the service still returns **200/201** for help and stores a fallback **`peaq_claim`** with **`raid_peaq_read_status=failed`** (see **PeaqClaim**). **`GET /api/robots/{robotId}/peaq/claim?helpRequestId=`** with the same robot secret returns **`{ peaq_claim }`** when ready (including that fallback), or **404** `claim_not_ready` while the claim is still pending. **Signed KYR SessionGrant** (`teleopGrantPayload` + `teleopGrantSignature`, variant A) is issued **after** an operator accepts: poll **`GET /api/robots/{robotId}/teleop/session-grant?helpRequestId=`** when **`TELEOP_GRANT_SIGNING_SECRET_KEY`** is set; **`GET /health`** exposes **`teleopGrantSignerPublicKey`**. **Operator JWT** is required for `GET /api/teleoperator/help-requests` and `POST /api/teleoperator/help-requests/{id}/accept`. **Dataset HTTP** from the operator to the robot is proxied at **`/api/teleop/robots/{robotId}/dataset/...`** (same JWT and the same grant rule as accepting help). If the robot has **at least one** active row in **`teleoperator_robot_grants`**, only granted operators see open help requests (HTTP list) and receive **`help_request`** on **`/ws/teleoperator`**; only they may accept or use the dataset proxy. If the robot has **no** active grants, any logged-in operator sees all open requests and gets WS events (backward compatible). WebSockets: same JWT as **`?token=`** on `/ws/teleoperator` and `/ws/teleop/session/{sessionId}`. JWT lifetime: tag **Teleoperator**.',
+        'Robots call `POST /api/robots/{robotId}/teleop/help` with **`X-Robot-Teleop-Secret`** (per-robot secret), not the operator JWT. Body: required string **`message`**; **`metadata`** with **`task_id`**, **`error_context`**, optional **`situation_report`**, optional **`dataset_id`**, **`kyr_session_id`**, **`kyr_robot_id`** (DATA_NODE correlation; see **RobotTeleopHelpRequest**), optional opaque **`kyr_peaq_context`** (max 64 KiB JSON). Response includes top-level **`id`** (UUID of the help request) and optionally **`peaq_claim`** when **PEAQ_*** env is configured. If **`sdk.did.read`** fails, the service still returns **200/201** for help and stores a fallback **`peaq_claim`** with **`raid_peaq_read_status=failed`** (see **PeaqClaim**). **`GET /api/robots/{robotId}/peaq/claim?helpRequestId=`** with the same robot secret returns **`{ peaq_claim }`** when ready (including that fallback), or **404** `claim_not_ready` while the claim is still pending. **Signed KYR SessionGrant** (`teleopGrantPayload` + `teleopGrantSignature`, variant A) is issued **after** an operator accepts: poll **`GET /api/robots/{robotId}/teleop/session-grant?helpRequestId=`** when **`TELEOP_GRANT_SIGNING_SECRET_KEY`** is set; **`GET /health`** exposes **`teleopGrantSignerPublicKey`**. **Operator JWT** is required for `GET /api/teleoperator/help-requests`, `POST /api/teleoperator/help-requests/{id}/accept`, `POST /api/teleoperator/sessions/{sessionId}/decline-before-connect`, and `POST /api/teleoperator/sessions/{sessionId}/end` (body **`reason`**: **graceful_complete**, **operator_cancelled**, **network_quality_abort**, **client_error**). **404** **`grant_not_ready`** on **`GET .../session-grant`** means no grant yet **or** a previously issued grant was **cleared** (e.g. operator declined before proxy); the robot must **invalidate any cached SessionGrant** and keep polling until **200**. **Dataset HTTP** from the operator to the robot is proxied at **`/api/teleop/robots/{robotId}/dataset/...`** (same JWT and the same grant rule as accepting help). If the robot has **at least one** active row in **`teleoperator_robot_grants`**, only granted operators see open help requests (HTTP list) and receive **`help_request`** on **`/ws/teleoperator`**; only they may accept or use the dataset proxy. If the robot has **no** active grants, any logged-in operator sees all open requests and gets WS events (backward compatible). WebSockets: same JWT as **`?token=`** on `/ws/teleoperator` and `/ws/teleop/session/{sessionId}`. JWT lifetime: tag **Teleoperator**.',
     },
     { name: 'Admin', description: 'Admin panel API: session cookie from POST /api/admin/login, or HTTP Basic (curl/scripts).' },
     {
@@ -47,14 +48,14 @@ const swaggerDefinition = {
         in: 'cookie',
         name: 'teleop_token',
         description:
-          'JWT from POST /api/teleoperator/login or register. Default **max age 7 days** (configurable via **TELEOPERATOR_JWT_EXPIRES_IN**). Use on protected routes: GET /api/teleoperator/me, GET /api/teleoperator/help-requests, POST /api/teleoperator/help-requests/{id}/accept; also as **?token=** on /ws/teleoperator and /ws/teleop/session/{sessionId}.',
+          'JWT from POST /api/teleoperator/login or register. Default **max age 7 days** (configurable via **TELEOPERATOR_JWT_EXPIRES_IN**). Use on protected routes: GET /api/teleoperator/me, GET /api/teleoperator/help-requests, POST /api/teleoperator/help-requests/{id}/accept, POST /api/teleoperator/sessions/{sessionId}/decline-before-connect, POST /api/teleoperator/sessions/{sessionId}/end; also as **?token=** on /ws/teleoperator and /ws/teleop/session/{sessionId}.',
       },
       TeleoperatorBearer: {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
         description:
-          'Same JWT as **accessToken** or cookie **teleop_token** (default lifetime **7d**, env **TELEOPERATOR_JWT_EXPIRES_IN**). Required for: GET /api/teleoperator/me, GET /api/teleoperator/help-requests, POST /api/teleoperator/help-requests/{id}/accept; WebSocket query **token** on /ws/teleoperator and /ws/teleop/session/{sessionId}.',
+          'Same JWT as **accessToken** or cookie **teleop_token** (default lifetime **7d**, env **TELEOPERATOR_JWT_EXPIRES_IN**). Required for: GET /api/teleoperator/me, GET /api/teleoperator/help-requests, POST /api/teleoperator/help-requests/{id}/accept, POST /api/teleoperator/sessions/{sessionId}/decline-before-connect, POST /api/teleoperator/sessions/{sessionId}/end; WebSocket query **token** on /ws/teleoperator and /ws/teleop/session/{sessionId}.',
       },
       AdminSessionCookie: {
         type: 'apiKey',
@@ -153,6 +154,33 @@ const swaggerDefinition = {
             nullable: true,
             description: 'Optional dataset HTTP port (default 9191).',
           },
+          dataNodeSyncOverride: {
+            type: 'object',
+            nullable: true,
+            additionalProperties: true,
+            description:
+              'Per-robot merge layer for DATA_NODE batch provisioning (camelCase keys per docs/ROBOT_OPERATOR_SYNC.md). **authHeaderValue** is redacted in GET responses; send **[redacted]** or omit to keep stored token.',
+          },
+          dataNodeSync: {
+            type: 'object',
+            nullable: true,
+            readOnly: true,
+            description:
+              'Present on **POST /api/robots/enroll** when fleet/per-robot sync is configured; merged payload for the robot worker.',
+            properties: {
+              baseUrl: { type: 'string' },
+              batchPath: { type: 'string' },
+              enabled: { type: 'boolean' },
+              authHeaderName: { type: 'string' },
+              authHeaderValue: { type: 'string' },
+              intervalSec: { type: 'integer' },
+              raidRobotUuid: { type: 'string', format: 'uuid' },
+              includeDashboardEvents: { type: 'boolean' },
+              includeAuditEvents: { type: 'boolean' },
+              includeStateUsbSnapshot: { type: 'boolean' },
+              includeKyrIncidents: { type: 'boolean' },
+            },
+          },
           status: { $ref: '#/components/schemas/RobotHealthStatus' },
           lastHealthCheckAt: { type: 'string', format: 'date-time', nullable: true },
           location: {
@@ -188,9 +216,9 @@ const swaggerDefinition = {
       },
       RobotTeleopHelpRequest: {
         type: 'object',
-        required: ['message'],
+        required: ['message', 'metadata'],
         description:
-          'Robot help request. **`message`** is required. **`metadata`** SHOULD include **`task_id`** and **`error_context`** (strings; `error_context` may be empty). **`situation_report`** is optional UTF-8 context (robot state, recent actions, why help is needed); if omitted, the server stores an empty string. Optional **`kyr_peaq_context`**: opaque JSON object from KYR (max 64 KiB serialized); must be a plain object if present. Extra `metadata` properties are preserved. Max ~64 KiB UTF-8 for `situation_report` (server truncates). Legacy clients may omit `metadata` entirely (server supplies default empty strings for the standard keys).',
+          'Robot help request. **`message`** and **`metadata`** (plain object, may be `{}`) are required. **`metadata`** SHOULD include **`task_id`** and **`error_context`** (strings; `error_context` may be empty). **`situation_report`** is optional UTF-8 context; if omitted, stored as empty string. Optional **`dataset_id`**, **`kyr_session_id`**, **`kyr_robot_id`**: DATA_NODE correlation (docs/RAID_APP_DATA_NODE_CORRELATION_SPEC.md). Optional **`kyr_peaq_context`**: opaque object from KYR (max 64 KiB JSON). Extra `metadata` properties are preserved.',
         properties: {
           message: {
             type: 'string',
@@ -215,6 +243,19 @@ const swaggerDefinition = {
               situation_report: {
                 type: 'string',
                 description: 'Free-text UTF-8 situation summary for the operator / VR UI.',
+              },
+              dataset_id: {
+                type: 'string',
+                description:
+                  'Optional active dataset / record id from the robot when recording overlaps help (DATA_NODE correlation).',
+              },
+              kyr_session_id: {
+                type: 'string',
+                description: 'Optional KYR open_session id during teleop (DATA_NODE correlation).',
+              },
+              kyr_robot_id: {
+                type: 'string',
+                description: 'Optional KYR string robot id (e.g. kyr_proxy ~robot_id) for DATA_NODE correlation.',
               },
               kyr_peaq_context: {
                 type: 'object',
@@ -277,6 +318,23 @@ const swaggerDefinition = {
           },
         },
       },
+      SyncOperatorAllowlistRequest: {
+        type: 'object',
+        description:
+          'Optional body for **POST /api/admin/robots/{robotId}/sync-operator-allowlist**. Defaults both flags true. At least one must be true.',
+        properties: {
+          pushAllowlist: {
+            type: 'boolean',
+            default: true,
+            description: 'Include **allowedTeleoperatorIds** from teleoperator_robot_grants.',
+          },
+          pushDataNodeSync: {
+            type: 'boolean',
+            default: true,
+            description: 'Include **dataNodeSync** when fleet env and/or per-robot override yields a payload.',
+          },
+        },
+      },
       RegisterRobotRequest: {
         type: 'object',
         required: ['host', 'port'],
@@ -295,6 +353,12 @@ const swaggerDefinition = {
           datasetHttpHost: { type: 'string', description: 'Optional dataset HTTP host for teleop proxy.' },
           datasetHttpPort: { type: 'integer', description: 'Optional dataset HTTP port (default 9191).' },
           operatorRegistryUrl: { type: 'string', description: 'Optional; see docs/ROBOT_OPERATOR_SYNC.md' },
+          dataNodeSyncOverride: {
+            type: 'object',
+            nullable: true,
+            additionalProperties: true,
+            description: 'Optional per-robot DATA_NODE batch provisioning overrides.',
+          },
         },
       },
       DanceCommandRequest: {
